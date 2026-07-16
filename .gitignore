@@ -1,0 +1,48 @@
+# Python and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+credentials*.json
+secrets*.json
+
+# Data, model weights, run outputs, and caches
+data/*
+!data/.gitkeep
+!data/README.md
+models/*
+!models/.gitkeep
+!models/README.md
+outputs/*
+!outputs/.gitkeep
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.npz
+*.npy
+*.pkl
+*.pickle
+
+# Tooling and platform files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+wandb/
+mlruns/

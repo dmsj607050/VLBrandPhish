@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vlbrandphish"
+version = "0.1.0"
+description = "Visual-language brand-aware phishing detection"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "numpy>=1.26",
+    "Pillow>=10.0",
+    "pyyaml>=6.0",
+    "sentencepiece>=0.2.0",
+    "tqdm>=4.66",
+    "transformers>=4.45",
+]
+
+[project.optional-dependencies]
+detector = ["mmengine>=0.10.5", "mmdet>=3.3.0"]
+figures = ["matplotlib>=3.8"]
+dev = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

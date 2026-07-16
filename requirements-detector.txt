@@ -1,0 +1,5 @@
+# Install a compatible MMDetection stack for your PyTorch/CUDA build.
+# The official OpenMMLab installation guide is recommended for binary wheels.
+-r requirements.txt
+mmengine>=0.10.5
+mmdet>=3.3.0

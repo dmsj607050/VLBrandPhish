@@ -1,0 +1,32 @@
+name: five_dim_brand_v1
+
+template_groups:
+  core_identity:
+    - "{brand}"
+    - "{brand} logo"
+    - "official logo of {brand}"
+    - "{brand} brand identity"
+
+  mark_type:
+    - "{brand} wordmark logo"
+    - "{brand} logomark"
+    - "{brand} symbol logo"
+    - "{brand} emblem"
+
+  rendering_style:
+    - "clean {brand} logo"
+    - "flat {brand} vector logo"
+    - "monochrome {brand} logo"
+    - "high contrast {brand} brand mark"
+
+  scene_context:
+    - "{brand} logo on a website header"
+    - "{brand} logo in a webpage screenshot"
+    - "{brand} logo on a login page"
+    - "{brand} logo in navigation bar"
+
+  scale_variation:
+    - "cropped {brand} logo"
+    - "small {brand} logo"
+    - "partial {brand} wordmark"
+    - "{brand} favicon icon"

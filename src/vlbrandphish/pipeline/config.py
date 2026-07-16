@@ -1,0 +1,67 @@
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass, asdict
+from datetime import datetime
+from typing import Dict
+
+
+@dataclass(frozen=True)
+class DefaultPaths:
+    phishkiller_root: str
+    testb_root: str
+    benign_root: str
+    phish_root: str
+    logo_library_dir: str
+    dbi5_dir: str
+    det_csv: str
+    normal_urls_csv: str
+    brand_ckpt: str
+    detector_ckpt: str
+
+    def to_dict(self) -> Dict[str, str]:
+        return dict(asdict(self))
+
+
+REL_PATHS = {
+    "testb_root": "data/inputs",
+    "benign_root": "data/inputs/benign",
+    "phish_root": "data/inputs/phish",
+    "logo_library_dir": "data/brand_library/images",
+    "dbi5_dir": "data/brand_library/DBI-5",
+    "det_csv": "outputs/stage1/table8_detection_top3.csv",
+    "normal_urls_csv": "data/brand_library/normal_urls.csv",
+    "brand_ckpt": "models/brand_recognizer.pt",
+    "detector_ckpt": "models/logo_detector.pth",
+}
+
+
+def _abs_from_root(root: str, rel_path: str) -> str:
+    return os.path.abspath(os.path.join(root, rel_path))
+
+
+def resolve_default_paths(this_file: str) -> DefaultPaths:
+    # This module lives in ``src/vlbrandphish/pipeline``. Resolving from the
+    # repository root keeps command-line defaults portable after cloning.
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(this_file)), "..", "..", ".."))
+    testb_root = _abs_from_root(repo_root, REL_PATHS["testb_root"])
+
+    return DefaultPaths(
+        # Retained for compatibility with the original pipeline. Its value is
+        # now the repository root, not an external PhishKiller directory.
+        phishkiller_root=repo_root,
+        testb_root=testb_root,
+        benign_root=_abs_from_root(repo_root, REL_PATHS["benign_root"]),
+        phish_root=_abs_from_root(repo_root, REL_PATHS["phish_root"]),
+        logo_library_dir=_abs_from_root(repo_root, REL_PATHS["logo_library_dir"]),
+        dbi5_dir=_abs_from_root(repo_root, REL_PATHS["dbi5_dir"]),
+        det_csv=_abs_from_root(repo_root, REL_PATHS["det_csv"]),
+        normal_urls_csv=_abs_from_root(repo_root, REL_PATHS["normal_urls_csv"]),
+        brand_ckpt=_abs_from_root(repo_root, REL_PATHS["brand_ckpt"]),
+        detector_ckpt=_abs_from_root(repo_root, REL_PATHS["detector_ckpt"]),
+    )
+
+
+def default_run_dir(base_out_dir: str, prefix: str) -> str:
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return os.path.join(os.path.abspath(base_out_dir), f"{prefix}_{stamp}")
