@@ -22,8 +22,8 @@ data/
 Update `data_root`, `output_dir`, and any resume checkpoint in a copied YAML file before a new run. Avoid editing the published defaults when reporting a separate experiment.
 
 ```bash
-python scripts/train.py --config configs/training/stage1_siglip.yaml
-python scripts/train.py --config configs/training/stage2_trisig_ot_safe.yaml
+vlbrandphish train-brand --config configs/training/stage1_siglip.yaml
+vlbrandphish train-brand --config configs/training/stage2_trisig_ot_safe.yaml
 ```
 
 ## End-to-end evaluation

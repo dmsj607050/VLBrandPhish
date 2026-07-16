@@ -1,10 +1,10 @@
 # VLBrandPhish
 
-Official code for **VLBrandPhish**, a visual-language, brand-aware phishing detection pipeline. The repository is prepared for the accompanying paper; the final title, author list, venue, and citation will be added when publication metadata is available.
+Official code for **VLBrandPhish**, a visual-language, brand-aware phishing-detection system. The repository is prepared for the accompanying paper; the final title, author list, venue, and citation will be added when publication metadata is available.
 
 ## What is included
 
-- A two-stage inference pipeline: logo detection followed by visual-language brand identification and URL-domain verification.
+- A detection-and-verification workflow: logo detection, visual-language brand identification, and URL-domain verification.
 - SigLIP-based brand-recognizer training code with image-to-image and image-to-text evidence fusion.
 - Logo-detector training wrappers built on MMDetection/DINO.
 - Reproducible command-line entry points, configuration files, unit tests, and a GitHub Actions syntax check.
@@ -19,11 +19,17 @@ VLBrandPhish-main/
 ├── data/                    # Local-only datasets and brand library (ignored)
 ├── docs/                    # Reproducibility and release documentation
 ├── models/                  # Local-only checkpoints (ignored)
-├── scripts/                 # Training entry points
+├── scripts/                 # Thin backwards-compatible command wrappers
 ├── src/vlbrandphish/
-│   ├── pipeline/            # Stage-1 and Stage-2 inference implementation
-│   └── training/            # SigLIP brand-recognizer implementation
-├── training/logo_detector/  # MMDetection/DINO detector training wrappers
+│   ├── config/              # Portable repository paths and configuration
+│   ├── data/                # Dataset records and CSV contracts
+│   ├── detection/           # Logo detection runtime and MMDetection training
+│   ├── recognition/         # Encoders, fusion modules, and brand repository
+│   ├── decision/            # Domain parsing and phishing decision policy
+│   ├── inference/           # End-to-end prediction runtime
+│   ├── training/brand/      # SigLIP brand-recognizer training
+│   ├── experiments/         # Ablations, analysis, figures, and preparation
+│   └── tools/annotation/    # Dataset annotation utilities
 └── tests/                   # Lightweight, data-free checks
 ```
 
@@ -42,36 +48,37 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-For Stage-1 or logo-detector training, install a compatible MMDetection stack following the OpenMMLab instructions, then run `pip install -r requirements-detector.txt`.
+For logo detection or detector training, install a compatible MMDetection stack following the OpenMMLab instructions, then run `pip install -r requirements-detector.txt`.
 
 ## Quick start
 
 Place data and checkpoints according to [Data and model release policy](docs/DATA_AND_MODELS.md). All default paths are relative to the repository root.
 
 ```bash
-# Stage 1: generate top-3 logo detections.
-python -m vlbrandphish.pipeline.stage1_detect_top3 \\
+# Generate top-k logo detections.
+vlbrandphish detect \\
   --det-config /path/to/mmdetection_config.py \\
   --det-checkpoint models/logo_detector.pth \\
   --progress
 
-# Stage 2: identify the brand and make a phishing decision.
-python -m vlbrandphish.pipeline.stage2_infer \\
-  --det-csv outputs/stage1/logo_detection_top3.csv \\
+# Identify the brand and make the phishing decision.
+vlbrandphish infer \\
+  --det-csv outputs/detection/logo_detection_top3.csv \\
   --brand-ckpt models/brand_recognizer.pt \\
   --progress
 
 # Train the brand recognizer.
-python scripts/train.py --config configs/training/stage1_siglip.yaml
+vlbrandphish train-brand --config configs/training/stage1_siglip.yaml
 ```
 
-The Stage-2 command accepts explicit paths for every dataset and model input. Run `python -m vlbrandphish.pipeline.stage2_infer --help` for the complete interface.
+The `infer` command accepts explicit paths for every dataset and model input. Run `vlbrandphish infer --help` for the complete interface. The legacy wrapper `python scripts/train_brand.py ...` remains available for existing training jobs.
 
 ## Reproducibility and release
 
 - [Reproducibility guide](docs/REPRODUCIBILITY.md)
 - [Data and model release policy](docs/DATA_AND_MODELS.md)
 - [Project structure](docs/PROJECT_STRUCTURE.md)
+- [Architecture review and design decisions](docs/ARCHITECTURE.md)
 - [Pre-publication release checklist](docs/RELEASE_CHECKLIST.md)
 
 ## License
