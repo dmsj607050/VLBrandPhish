@@ -1,1 +1,0 @@
-"""Phishkiller pipeline v2."""
