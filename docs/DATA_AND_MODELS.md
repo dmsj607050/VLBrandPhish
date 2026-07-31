@@ -18,13 +18,20 @@ Do not upload browser profiles, cookies, tokens, raw crawler logs, credentials, 
 
 ## Expected files for inference
 
+Datasets are documented under [`data/`](../data/) (name, source, size, role, link) and are
+not committed. Model weights live under `models/<method>/` (see
+[`models/README.md`](../models/README.md)).
+
 | Purpose | Local path | Distribution recommendation |
 | --- | --- | --- |
-| Logo-detector checkpoint | `models/logo_detector.pth` | Model host or Zenodo release asset |
-| Brand-recognizer checkpoint | `models/brand_recognizer.pt` | Model host or Zenodo release asset |
-| Brand logo library | `data/brand_library/images/` | Archived dataset with license/provenance |
-| Domain reference table | `data/brand_library/normal_urls.csv` | Versioned CSV with source/provenance |
-| Evaluation screenshots | `data/inputs/` | Access-controlled archive or retrieval script |
+| VLBrandPhish logo detector | `models/vlbrandphish/logo_detector.pth` | Model host or Zenodo release asset |
+| VLBrandPhish brand recognizer | `models/vlbrandphish/brand_recognizer.pt` | Model host or Zenodo release asset |
+| PhishIntention weights | `models/phishintention/*` | Official release + provenance |
+| Phishpedia weights | `models/phishpedia/*` | Official release + provenance |
+| Brand logo library | `data/phishintention/277_brand_pages/` | Archived dataset with license/provenance |
+| Domain reference table | `data/phishintention/normal_urls.csv` | Versioned CSV with source/provenance |
+| Evaluation screenshots | `data/phishintention/`, `data/vlbp_set/` | Access-controlled archive or retrieval script |
+| Adversarial samples | `data/phisheval/` | Access-controlled archive |
 
 When public links are available, replace this table's recommendation cells with the exact URL, version, SHA-256 checksum, and expected filename.
 

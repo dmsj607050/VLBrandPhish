@@ -22,9 +22,10 @@ credentials*.json
 secrets*.json
 
 # Data, model weights, run outputs, and caches
+# data: track dataset docs (*.md), ignore actual data subdirs
 data/*
 !data/.gitkeep
-!data/README.md
+!data/*.md
 # models: keep per-method dir structure + docs, ignore weights/caches/zips
 models/vlbrandphish/*
 models/phishintention/*
