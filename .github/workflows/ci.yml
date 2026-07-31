@@ -16,10 +16,8 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile source
-        run: python -m compileall src scripts tests
+        run: python -m compileall inference training experiments common scripts tests cli.py
       - name: Check tracked artifact hygiene
         run: python scripts/verify_artifact.py
       - name: Run dependency-free unit tests
-        env:
-          PYTHONPATH: src
         run: python -m unittest discover -s tests/unit -v

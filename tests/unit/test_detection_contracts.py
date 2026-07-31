@@ -2,9 +2,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from vlbrandphish.inference.data_contracts import DetectionSample, read_detection_top3_csv, write_detection_top3_csv
-from vlbrandphish.inference.data_loader import load_testb_samples
-from vlbrandphish.inference.decision_policy import decide_with_threshold_and_url
+from inference.vlbrandphish.data_contracts import DetectionSample, read_detection_top3_csv, write_detection_top3_csv
+from inference.vlbrandphish.data_loader import load_testb_samples
+from inference.vlbrandphish.decision_policy import decide_with_threshold_and_url
 
 
 class PipelineContractsTest(unittest.TestCase):

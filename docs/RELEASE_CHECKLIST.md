@@ -6,7 +6,7 @@
 - [ ] Document all third-party code, model, dataset, and brand-asset licenses; cite MMDetection/DINO, SigLIP, and other upstream work in the paper and README as appropriate.
 - [ ] Publish model weights and any permitted data through a durable release host with version, checksum, and access terms.
 - [ ] Add a minimal example or a data-access script that can run without private data.
-- [ ] Run `python -m compileall src scripts tests`, `python scripts/verify_artifact.py`, and `PYTHONPATH=src python -m unittest discover -s tests/unit -v`.
+- [ ] Run `python -m compileall inference training experiments common scripts tests cli.py`, `python scripts/verify_artifact.py`, and `python -m unittest discover -s tests/unit -v` (from the repository root).
 - [ ] Create a clean Git commit, tag the exact paper-release revision (for example `v1.0.0`), and make a GitHub Release.
 - [ ] For double-blind review, build a fresh history-free anonymous artifact mirror; do not use the public GitHub repository, its issue tracker, or its commit hashes as the reviewer link.
 - [ ] Run `python scripts/verify_artifact.py` in the artifact root and resolve all findings.

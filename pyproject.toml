@@ -27,16 +27,10 @@ dependencies = [
     "transformers>=4.45",
 ]
 
-[project.scripts]
-vlbrandphish = "vlbrandphish.cli:main"
-
 [project.optional-dependencies]
 detector = ["mmengine>=0.10.5", "mmdet>=3.3.0"]
 figures = ["matplotlib>=3.8"]
 dev = ["pytest>=8.0"]
-
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

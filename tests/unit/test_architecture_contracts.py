@@ -3,8 +3,8 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from vlbrandphish.inference.domain_verification import registered_domain
-from vlbrandphish.inference.types import Metrics
+from inference.vlbrandphish.domain_verification import registered_domain
+from inference.vlbrandphish.types import Metrics
 
 
 class ArchitectureContractsTest(unittest.TestCase):
@@ -24,9 +24,8 @@ class ArchitectureContractsTest(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         configs_dir = (
             root
-            / "src"
-            / "vlbrandphish"
             / "training"
+            / "vlbrandphish"
             / "brand_recognition"
             / "configs"
         )
@@ -40,32 +39,28 @@ class ArchitectureContractsTest(unittest.TestCase):
             self.assertIn("deterministic: true", config)
 
     def test_workflow_oriented_source_layout(self) -> None:
-        root = Path(__file__).resolve().parents[2] / "src" / "vlbrandphish"
+        root = Path(__file__).resolve().parents[2]
         expected = (
-            "components/brand/encoders.py",
-            "components/brand/fusion.py",
-            "inference/input_loading.py",
-            "inference/logo_detection.py",
-            "inference/model_loading.py",
-            "inference/brand_recognition.py",
-            "inference/domain_verification.py",
-            "inference/evaluation.py",
-            "inference/pipeline.py",
-            "training/logo_detection/train.py",
-            "training/brand_recognition/common/model.py",
-            "training/brand_recognition/stage1/trainer.py",
-            "training/brand_recognition/stage2/trainer.py",
+            "inference/vlbrandphish/components/brand/encoders.py",
+            "inference/vlbrandphish/components/brand/fusion.py",
+            "inference/vlbrandphish/input_loading.py",
+            "inference/vlbrandphish/logo_detection.py",
+            "inference/vlbrandphish/model_loading.py",
+            "inference/vlbrandphish/brand_recognition.py",
+            "inference/vlbrandphish/domain_verification.py",
+            "inference/vlbrandphish/evaluation.py",
+            "inference/vlbrandphish/pipeline.py",
+            "training/vlbrandphish/logo_detection/train.py",
+            "training/vlbrandphish/brand_recognition/common/model.py",
+            "training/vlbrandphish/brand_recognition/stage1/trainer.py",
+            "training/vlbrandphish/brand_recognition/stage2/trainer.py",
         )
         for relative in expected:
             self.assertTrue((root / relative).is_file(), relative)
 
         legacy_modules = (
-            "detection/runner.py",
-            "recognition/encoders.py",
-            "decision/domains.py",
-            "data/detections.py",
-            "training/brand/engine.py",
-            "inference/runner.py",
+            "inference/vlbrandphish/runner.py",
+            "training/vlbrandphish/brand/engine.py",
         )
         for relative in legacy_modules:
             self.assertFalse((root / relative).is_file(), relative)

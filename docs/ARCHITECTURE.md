@@ -4,15 +4,15 @@ This document records the source-layout review used for the public VLBrandPhish 
 
 ## What VLBrandPhish adopts
 
-PhishIntention has a useful `src/` package, a single package command, configuration at the package boundary, and focused step-level tests. VLBrandPhish adopts these ideas through a `src/vlbrandphish/` package, the `vlbrandphish` command, portable path resolution, and dependency-free tests.
+PhishIntention and PhishPedia each keep their core research path easy to locate: logo detection, brand/reference matching, and the final wrapper are visibly separated. VLBrandPhish follows that reader journey directly: each method's inference pipeline lives under `inference/<method>/`, training lives under `training/vlbrandphish/`, and experiments are thin runners under `experiments/` that call shared inference code and load shared model weights.
 
-PhishPedia makes its core research path easy to locate: logo recognition, matching, and the final wrapper are visibly separated. VLBrandPhish follows that reader journey directly: all training lives in `training/`, all deployable inference lives in `inference/`, and reusable model parts live in `components/`.
+The repository is organized around the paper's experiments rather than around a single Python package. Code is grouped by method (high cohesion within `inference/<method>/`) and experiments only adapt and orchestrate (low coupling: an experiment directory never re-implements method logic).
 
 ## Problems intentionally avoided
 
 | Risk in a research codebase | VLBrandPhish decision |
 | --- | --- |
-| Flat root-level modules whose imports depend on the current working directory | All production code is under one package and uses package-relative imports. |
+| Experiments that duplicate or fork method logic | Experiments under `experiments/` only call `inference/<method>/` and load `models/<method>/`; they contain only experiment-specific adaptation code. |
 | A wrapper that loads models, writes caches, parses CLI arguments, and renders results in one global configuration flow | Runtime components own their own inputs; the public CLI dispatches to explicit commands. |
 | A wide positional tuple used as an implicit system configuration | Paths are a named `DefaultPaths` dataclass; record and result structures are dataclasses. |
 | Experiment-specific assumptions inside the production path | Prompt ablations, protocol comparisons, diagnostics, paper figures, and data preparation live in `experiments/`. |

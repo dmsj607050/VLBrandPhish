@@ -15,30 +15,33 @@ Datasets, screenshots, trained weights, caches, and experimental run outputs are
 
 ```text
 VLBrandPhish-main/
-|-- data/                            # Local-only datasets and brand library (ignored)
+|-- data/                            # Dataset documentation (actual data hosted externally)
 |-- docs/                            # Reproducibility and release documentation
-|-- models/                          # Local-only checkpoints (ignored)
-|-- scripts/                         # Thin backwards-compatible command wrappers
-|-- src/vlbrandphish/
-|   |-- components/brand/            # Shared encoder, fusion, brand repository, naming
-|   |-- config/                      # Portable repository paths and configuration
-|   |-- inference/                   # Complete inference workflow
-|   |   |-- data_loader.py           # Input/sample loading
-|   |   |-- logo_detection.py        # Logo detection command
-|   |   |-- model_loading.py         # Encoder and brand-repository loading
-|   |   |-- brand_recognition.py     # Logo-crop encoding and evidence fusion
-|   |   |-- domain_verification.py   # Domain-brand consistency checks
-|   |   |-- evaluation.py            # Metrics and reports
-|   |   `-- pipeline.py              # End-to-end inference command
-|   |-- training/
-|   |   |-- logo_detection/          # MMDetection/DINO logo-detector training
-|   |   `-- brand_recognition/       # Brand-recognizer training
-|   |       |-- common/              # Shared data/model/loss/optimizer code
-|   |       |-- configs/             # Training configurations and prompt templates
-|   |       |-- stage1/              # Pairwise SigLIP stage
-|   |       `-- stage2/              # Fusion/TriSig stage
-|   |-- experiments/                 # Ablations, analysis, figures, and preparation
-|   `-- tools/annotation/            # VOC/XML annotation utilities
+|-- models/                          # Model checkpoints, one subdir per method (ignored)
+|-- scripts/                         # Manifest, verification, and metadata utilities
+|-- inference/                       # Per-method inference pipelines
+|   `-- vlbrandphish/                # VLBrandPhish end-to-end pipeline
+|       |-- components/brand/        # Shared encoder, fusion, brand repository, naming
+|       |-- logo_detection.py        # Logo detection command
+|       |-- model_loading.py         # Encoder and brand-repository loading
+|       |-- brand_recognition.py     # Logo-crop encoding and evidence fusion
+|       |-- domain_verification.py   # Domain-brand consistency checks
+|       |-- evaluation.py            # Metrics and reports
+|       `-- pipeline.py              # End-to-end inference command
+|-- training/                        # Training code (VLBrandPhish only)
+|   `-- vlbrandphish/
+|       |-- logo_detection/          # MMDetection/DINO logo-detector training
+|       `-- brand_recognition/       # Brand-recognizer training
+|           |-- common/              # Shared data/model/loss/optimizer code
+|           |-- configs/             # Training configurations and prompt templates
+|           |-- stage1/              # Pairwise SigLIP stage
+|           `-- stage2/              # Fusion/TriSig stage
+|-- experiments/                     # Per-experiment runners (call inference + models)
+|   |-- ablations/                   # Branch/prompt/library/weight ablations
+|   |-- analysis/                    # Inference diagnostics and protocols
+|   |-- figures/                     # Case-study and figure generation
+|   `-- preparation/                 # Dataset/reference-library preparation
+|-- common/                          # Cross-method shared code (paths, annotation)
 `-- tests/                           # Lightweight, data-free checks
 ```
 
@@ -54,8 +57,11 @@ python -m venv .venv
 # Linux/macOS: source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-pip install -e .
 ```
+
+The repository uses a flat layout: run commands from the repository root so that
+`inference/`, `training/`, `common/`, and `experiments/` are importable. There is
+no installable package; `pip install -e .` is not required.
 
 For logo detection or detector training, install a compatible MMDetection stack following the OpenMMLab instructions, then run `pip install -r requirements-detector.txt`.
 
@@ -65,22 +71,22 @@ Place data and checkpoints according to [Data and model release policy](docs/DAT
 
 ```bash
 # Generate top-k logo detections.
-vlbrandphish detect \\
+python cli.py detect \\
   --det-config /path/to/mmdetection_config.py \\
-  --det-checkpoint models/logo_detector.pth \\
+  --det-checkpoint models/vlbrandphish/logo_detector.pth \\
   --progress
 
 # Identify the brand and make the phishing decision.
-vlbrandphish infer \\
+python cli.py infer \\
   --det-csv outputs/detection/logo_detection_top3.csv \\
-  --brand-ckpt models/brand_recognizer.pt \\
+  --brand-ckpt models/vlbrandphish/brand_recognizer.pt \\
   --progress
 
 # Train the brand recognizer.
-vlbrandphish train-brand --config src/vlbrandphish/training/brand_recognition/configs/stage1_siglip.yaml
+python cli.py train-brand --config training/vlbrandphish/brand_recognition/configs/stage1_siglip.yaml
 ```
 
-The `infer` command accepts explicit paths for every dataset and model input. Run `vlbrandphish infer --help` for the complete interface. The legacy wrapper `python scripts/train_brand.py ...` remains available for existing training jobs.
+The `infer` command accepts explicit paths for every dataset and model input. Run `python cli.py infer --help` for the complete interface. The legacy wrapper `python scripts/train_brand.py ...` remains available for existing training jobs.
 
 ## Reproducibility and release
 
