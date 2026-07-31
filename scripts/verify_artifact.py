@@ -51,7 +51,7 @@ def _tracked_files(root: Path) -> list[Path]:
             for name in ("README.md", "LICENSE", "pyproject.toml", "requirements.txt")
             if (root / name).is_file()
         ]
-        for directory in ("src", "scripts", "configs", "docs"):
+        for directory in ("src", "scripts", "docs"):
             base = root / directory
             if base.is_dir():
                 candidates.extend(path for path in base.rglob("*") if path.is_file())

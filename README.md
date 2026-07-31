@@ -15,7 +15,6 @@ Datasets, screenshots, trained weights, caches, and experimental run outputs are
 
 ```text
 VLBrandPhish-main/
-|-- configs/                         # Training configurations and prompt templates
 |-- data/                            # Local-only datasets and brand library (ignored)
 |-- docs/                            # Reproducibility and release documentation
 |-- models/                          # Local-only checkpoints (ignored)
@@ -34,7 +33,9 @@ VLBrandPhish-main/
 |   |-- training/
 |   |   |-- logo_detection/          # MMDetection/DINO logo-detector training
 |   |   `-- brand_recognition/       # Brand-recognizer training
-|   |       |-- common/              # Shared data/model/loss/optimizer code`r`n|   |       |-- stage1/              # Pairwise SigLIP stage
+|   |       |-- common/              # Shared data/model/loss/optimizer code
+|   |       |-- configs/             # Training configurations and prompt templates
+|   |       |-- stage1/              # Pairwise SigLIP stage
 |   |       `-- stage2/              # Fusion/TriSig stage
 |   |-- experiments/                 # Ablations, analysis, figures, and preparation
 |   `-- tools/annotation/            # VOC/XML annotation utilities
@@ -76,7 +77,7 @@ vlbrandphish infer \\
   --progress
 
 # Train the brand recognizer.
-vlbrandphish train-brand --config configs/training/stage1_siglip.yaml
+vlbrandphish train-brand --config src/vlbrandphish/training/brand_recognition/configs/stage1_siglip.yaml
 ```
 
 The `infer` command accepts explicit paths for every dataset and model input. Run `vlbrandphish infer --help` for the complete interface. The legacy wrapper `python scripts/train_brand.py ...` remains available for existing training jobs.

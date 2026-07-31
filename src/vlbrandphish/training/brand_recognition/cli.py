@@ -17,7 +17,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument(
         "--config",
         type=str,
-        default="configs/training/stage1_siglip.yaml",
+        default="src/vlbrandphish/training/brand_recognition/configs/stage1_siglip.yaml",
         help="Path to the YAML training configuration.",
     )
     args = parser.parse_args(argv)

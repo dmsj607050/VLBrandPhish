@@ -22,8 +22,8 @@ data/
 Update `data_root`, `output_dir`, and any resume checkpoint in a copied YAML file before a new run. Avoid editing the published defaults when reporting a separate experiment.
 
 ```bash
-vlbrandphish train-brand --config configs/training/stage1_siglip.yaml
-vlbrandphish train-brand --config configs/training/stage2_trisig_ot_safe.yaml
+vlbrandphish train-brand --config src/vlbrandphish/training/brand_recognition/configs/stage1_siglip.yaml
+vlbrandphish train-brand --config src/vlbrandphish/training/brand_recognition/configs/stage2_trisig_ot_safe.yaml
 ```
 
 ## End-to-end evaluation
@@ -47,7 +47,7 @@ Generate a deterministic SHA-256 manifest for the exact files that reviewers can
 ```bash
 python scripts/create_artifact_manifest.py \
   --include README.md --include LICENSE --include pyproject.toml \
-  --include configs --include docs --include scripts --include src \
+  --include docs --include scripts --include src \
   --output artifact_manifest.json
 ```
 
@@ -57,7 +57,7 @@ Create the run-level record immediately after each run. It hashes the frozen con
 
 ```bash
 python scripts/record_run_metadata.py \
-  --config configs/training/stage1_siglip.yaml \
+  --config src/vlbrandphish/training/brand_recognition/configs/stage1_siglip.yaml \
   --input data/manifests/stage1_test.json \
   --input models/brand_recognizer.pt \
   --seed 42 --collect-torch-runtime \
