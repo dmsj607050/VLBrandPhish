@@ -17,6 +17,8 @@ jobs:
           python-version: "3.11"
       - name: Compile source
         run: python -m compileall src scripts tests
+      - name: Check tracked artifact hygiene
+        run: python scripts/verify_artifact.py
       - name: Run dependency-free unit tests
         env:
           PYTHONPATH: src

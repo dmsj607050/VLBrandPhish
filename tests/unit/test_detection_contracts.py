@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from vlbrandphish.data.detections import DetectionSample, read_detection_top3_csv, write_detection_top3_csv
+from vlbrandphish.data.test_b import load_testb_samples
 from vlbrandphish.decision.policy import decide_with_threshold_and_url
 
 
@@ -35,6 +36,15 @@ class PipelineContractsTest(unittest.TestCase):
         )
         self.assertFalse(result.pred_is_phishing)
         self.assertEqual(result.reason, "score_below_threshold")
+
+
+    def test_missing_or_empty_evaluation_roots_fail_fast(self) -> None:
+        with self.assertRaises(FileNotFoundError):
+            load_testb_samples("missing-benign", "missing-phish")
+
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises(RuntimeError):
+                load_testb_samples(directory, "")
 
 
 if __name__ == "__main__":

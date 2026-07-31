@@ -80,6 +80,7 @@ The `infer` command accepts explicit paths for every dataset and model input. Ru
 - [Project structure](docs/PROJECT_STRUCTURE.md)
 - [Architecture review and design decisions](docs/ARCHITECTURE.md)
 - [Pre-publication release checklist](docs/RELEASE_CHECKLIST.md)
+- [USENIX Security '27 readiness and anonymous-artifact guide](docs/USENIX_SECURITY_2027_READINESS.md)
 
 ## License
 

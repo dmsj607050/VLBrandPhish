@@ -49,12 +49,21 @@ from .transforms import build_transforms
 from .utils import ensure_dir
 
 
-def _set_seed(seed: int) -> None:
+def _set_seed(seed: int, *, deterministic: bool = False) -> None:
     seed = int(seed)
+    deterministic = bool(deterministic)
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.benchmark = not deterministic
+    torch.backends.cudnn.deterministic = deterministic
+    try:
+        torch.use_deterministic_algorithms(deterministic, warn_only=True)
+    except (AttributeError, RuntimeError):
+        # Older PyTorch builds may not expose this control; the cuDNN setting above
+        # remains in effect and the run metadata records the installed version.
+        pass
 
 
 def _worker_init_fn(worker_id: int) -> None:
@@ -1252,7 +1261,7 @@ def evaluate_full_classification(
 
 
 def run_training(cfg: Dict[str, Any]) -> Path:
-    _set_seed(int(cfg.get("seed", 42)))
+    _set_seed(int(cfg.get("seed", 42)), deterministic=bool(cfg.get("deterministic", False)))
     stage = str(cfg.get("stage", "stage1")).lower()
     objective = str(cfg.get("objective", "pairwise")).lower()
 
@@ -1261,6 +1270,7 @@ def run_training(cfg: Dict[str, Any]) -> Path:
     print(f"\n{'=' * 60}")
     print(f"[{stage}] Device: {device}")
     print(f"[{stage}] Objective: {objective}")
+    print(f"[{stage}] Deterministic backend: {bool(cfg.get('deterministic', False))}")
     print(f"{'=' * 60}\n")
 
     train_samples, val_samples, default_prompts, label_to_name = _build_splits(cfg)

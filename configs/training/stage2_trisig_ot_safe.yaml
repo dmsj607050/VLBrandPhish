@@ -1,5 +1,6 @@
 stage: "stage2"
 seed: 42
+deterministic: true
 
 model_name: "google/siglip-base-patch16-224"
 prompt_ensemble: "mean"

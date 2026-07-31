@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 from vlbrandphish.decision.domains import registered_domain
 from vlbrandphish.inference.types import Metrics
@@ -18,6 +19,17 @@ class ArchitectureContractsTest(unittest.TestCase):
     def test_domain_policy_is_self_contained(self) -> None:
         self.assertEqual(registered_domain("https://login.example.co.uk/path"), "example.co.uk")
         self.assertEqual(registered_domain("not-a-url.example"), "not-a-url.example")
+
+    def test_training_configs_request_deterministic_backend(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        for name in (
+            "stage1_siglip.yaml",
+            "stage1_router_logo2k.yaml",
+            "stage2_trisig_ot_safe.yaml",
+        ):
+            config = (root / "configs" / "training" / name).read_text(encoding="utf-8")
+            self.assertIn("seed: 42", config)
+            self.assertIn("deterministic: true", config)
 
 if __name__ == "__main__":
     unittest.main()

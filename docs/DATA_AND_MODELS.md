@@ -27,3 +27,7 @@ Do not upload browser profiles, cookies, tokens, raw crawler logs, credentials, 
 | Evaluation screenshots | `data/inputs/` | Access-controlled archive or retrieval script |
 
 When public links are available, replace this table's recommendation cells with the exact URL, version, SHA-256 checksum, and expected filename.
+
+## Anonymous-review access
+
+For a double-blind submission, do not use this public GitHub repository as the review artifact. The artifact mirror must have no Git history, usernames, organization names, tracked analytics, or public URLs that identify the authors. Provide an anonymous access link in the paper's Open Science appendix, enumerate what is accessible, and explain every legal, ethical, privacy, or security restriction on data or checkpoints. See [USENIX Security '27 readiness](USENIX_SECURITY_2027_READINESS.md).
