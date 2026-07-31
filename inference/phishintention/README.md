@@ -1,0 +1,231 @@
+# PhishIntention
+<div align="center">
+
+![Dialogues](https://img.shields.io/badge/Proctected\_Brands\_Size-277-green?style=flat-square)
+
+</div>
+<p align="center">
+  <a href="https://www.usenix.org/conference/usenixsecurity22/presentation/liu-ruofan">Paper</a> •
+  <a href="https://sites.google.com/view/
+phishintention">Website</a> •
+  <a href="https://www.youtube.com/watch?v=yU7FrlSJ818">Video</a> •
+  <a href="#citation">Citation</a>
+</p>
+
+## PhishIntention
+- This is the official implementation of "Inferring Phishing Intention via Webpage Appearance and Dynamics: A Deep Vision-Based Approach"USENIX'22 [link to paper](http://linyun.info/publications/usenix22.pdf), [link to our website](https://sites.google.com/view/phishintention/home)
+
+- Existing reference-based phishing detectors:
+   - :x: Subject to false positive because they **only capture brand intention**
+     
+- The contributions of our paper:
+   - :white_check_mark: We propose a referenced-based phishing detection system that captures both brand intention and **credential-taking intention**. To the best of our knowledge, this is the first work that analyzes both brand intention and credential-taking intentions in a systematic way for phishing detection.
+   - :white_check_mark: We set up a **phishing monitoring system**. It reports phishing webpages per day with the **highest precision** in comparison to state-of-the-art phishing detection solutions.
+
+## Framework
+<img src="big_pic/Screenshot 2021-08-13 at 9.15.56 PM.png" style="width:2000px;height:350px"/>
+
+```Input```: a screenshot, ```Output```: Phish/Benign, Phishing target
+- Step 1: Enter <b>Abstract Layout detector</b>, get predicted elements
+
+- Step 2: Enter <b>Siamese Logo Comparison</b>
+    - If Siamese report no target, ```Return  Benign, None```
+    - Else Siamese report a target, Enter step 3 <b>CRP classifier</b>
+       
+- Step 3: <b>CRP classifier</b>
+   - If <b>CRP classifier</b> reports its a CRP page, go to step 5 <b>Return</b>
+   - ElIf not a CRP page and havent execute <b>CRP Locator</b> before, go to step 4: <b>CRP Locator</b>
+   - Else not a CRP page but have done <b>CRP Locator</b> before, ```Return Benign, None``` 
+
+- Step 4: <b>CRP Locator</b>
+   - Find login/signup links and click, if reach a CRP page at the end, go back to step 1 <b>Abstract Layout detector</b> with an updated URL and screenshot
+   - Else cannot reach a CRP page, ```Return Benign, None``` 
+   
+- Step 5: 
+    - If reach a CRP + Siamese report target: ```Return Phish, Phishing target``` 
+    - Else ```Return Benign, None``` 
+
+## Project structure
+```
+|_ configs: Configuration files for the object detection models and the gloal configurations
+|_ modules: Inference code for layout detector, CRP classifier, CRP locator, and OCR-aided siamese model
+|_ models: the model weights and reference list
+|_ ocr_lib: external code for the OCR encoder
+|_ utils
+|_ configs.py: load configuration files
+|_ phishintention.py: main script
+```
+
+## Automatic Setup (New)
+We now provide a fully automatic setup pipeline for Linux, Windows and MacOS, including installation of pixi, chrome, chromedriver etc.
+### Setup with Docker
+For Linux and Windows, we recommend using Docker.
+  ```bash
+  git clone https://github.com/lindsey98/PhishIntention.git
+  cd PhishIntention
+  docker build -t phishintention .
+  ```
+You can run from command line with
+  ```bash
+  docker run --rm phishintention pixi run python phishintention.py --folder <folder you want to test e.g. datasets/test_sites> --output_fn <where you want to save the results e.g. test.json>
+  ```
+
+### Non-Docker Setup
+We provide an automatic installation pipeline that **detects your system and GPU** to install the appropriate versions of PyTorch and Detectron2.
+
+- **GPU Support**: If you have an NVIDIA GPU with CUDA, the script will automatically install CUDA-enabled PyTorch and Detectron2.
+- **CPU Fallback**: If no GPU is detected, CPU versions will be installed.
+
+#### Windows
+
+```bash
+git clone https://github.com/lindsey98/PhishIntention.git
+cd PhishIntention
+
+# Install latest Chrome and ChromeDriver
+.\chrome_setup.bat
+
+# Install pixi (restart your terminal after installation)
+powershell -ExecutionPolicy ByPass -c "irm -useb https://pixi.sh/install.ps1 | iex"
+
+# Install dependencies (auto-detects GPU and installs appropriate PyTorch/Detectron2)
+pixi install
+.\setup.bat
+```
+
+#### macOS
+
+```bash
+git clone https://github.com/lindsey98/PhishIntention.git
+cd PhishIntention
+export KMP_DUPLICATE_LIB_OK=TRUE
+
+# Install pixi (restart your terminal after installation)
+curl -fsSL https://pixi.sh/install.sh | sh
+
+# Install Chrome
+brew install --cask google-chrome
+
+# Configure Chrome path (for bash)
+echo 'export CHROME_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"' >> ~/.bash_profile
+echo 'export PATH="/Applications/Google Chrome.app/Contents/MacOS:$PATH"' >> ~/.bash_profile
+source ~/.bash_profile
+
+# Or for zsh:
+echo 'export CHROME_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"' >> ~/.zshrc
+echo 'export PATH="/Applications/Google Chrome.app/Contents/MacOS:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+
+# Verify Chrome Installation
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --version
+
+# Install dependencies (auto-detects and installs appropriate PyTorch/Detectron2)
+pixi install
+chmod +x setup.sh && ./setup.sh
+```
+
+#### Linux
+
+```bash
+git clone https://github.com/lindsey98/PhishIntention.git
+cd PhishIntention
+export KMP_DUPLICATE_LIB_OK=TRUE
+
+# Install pixi (restart your terminal after installation)
+curl -fsSL https://pixi.sh/install.sh | sh
+
+# Install Chrome (Ubuntu/Debian)
+wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+sudo dpkg -i google-chrome-stable_current_amd64.deb
+sudo apt-get install -f
+
+# Install dependencies (auto-detects GPU and installs appropriate PyTorch/Detectron2)
+pixi install
+chmod +x setup.sh && ./setup.sh
+```
+
+#### Manual PyTorch/Detectron2 Installation (Optional)
+
+If you prefer to install PyTorch and Detectron2 manually, or if the automatic installation fails:
+
+```bash
+# Run the auto-install script interactively
+pixi run python auto_install_detectron2.py
+
+# Or install manually:
+# 1. Install PyTorch from https://pytorch.org/get-started/locally/
+# 2. Install Detectron2 from https://detectron2.readthedocs.io/en/latest/tutorials/install.html
+```
+
+You can run from command line with
+  ```bash
+  pixi run python phishintention.py --folder <folder you want to test e.g. datasets/test_sites> --output_fn <where you want to save the results e.g. test.json>
+  ```
+
+## Setup
+
+### Step 1: Install dependencies:
+
+- Prerequisite: [Pixi installed](https://pixi.sh/latest/)
+
+- For Linux/Mac,
+
+  ```bash
+  export KMP_DUPLICATE_LIB_OK=TRUE
+  git clone https://github.com/lindsey98/PhishIntention.git
+  cd PhishIntention
+  pixi install
+  chmod +x setup.sh
+  ./setup.sh
+  ```
+
+- For Windows,
+
+  ```bash
+  git clone https://github.com/lindsey98/PhishIntention.git
+  cd Phishpedia
+  pixi install
+  setup.bat
+  ```
+
+### Step 2: Install chromedriver:
+- Check your chrome binary version, you can do so by typing ``chrome://version/`` in your browser, or type ``google-chrome --version`` from the command line.
+- Download the corresponding chromedriver from this [repository](https://github.com/dreamshao/chromedriver/tree/main). For example, if you are using ``135.0.7049.42`` on Linux, then you should look for ``135.0.7049.42 chromedriver-linux64.zip``.
+- Unzip the downloaded zip, put the ``chromedriver.exe`` under ``./chromedriver-linux64/``.
+
+## Running PhishIntention from Command Line
+
+When you run the scripts for the 1st time, the reference list needs to be loaded, this may take some time.
+
+```bash
+pixi run python phishintention.py --folder <folder you want to test e.g. datasets/test_sites> --output_fn <where you want to save the results e.g. test.json>
+```
+
+The testing folder should be in the structure of:
+
+```text
+test_site_1
+|__ info.txt (Write the URL)
+|__ shot.png (Save the screenshot)
+|__ html.txt (HTML source code, optional)
+test_site_2
+|__ info.txt (Write the URL)
+|__ shot.png (Save the screenshot)
+|__ html.txt (HTML source code, optional)
+......
+```
+
+## Miscellaneous
+- In our paper, we also implement several phishing detection and identification baselines, see [here](https://github.com/lindsey98/PhishingBaseline)
+
+## Citation
+Please consider citing our work :)
+```bibtex
+@inproceedings{liu2022inferring,
+  title={Inferring Phishing Intention via Webpage Appearance and Dynamics: A Deep Vision Based Approach},
+  author={Liu, Ruofan and Lin, Yun and Yang, Xianglin and Ng, Siang Hwee and Divakaran, Dinil Mon and Dong, Jin Song},
+  booktitle={30th $\{$USENIX$\}$ Security Symposium ($\{$USENIX$\}$ Security 21)},
+  year={2022}
+}
+```
+If you have any issues running our code, you can raise an issue or send an email to [liu.ruofan16@u.nus.edu, lin_yun@sjtu.edu.cn, dcsdjs@nus.edu.sg](mailto:liu.ruofan16@u.nus.edu,lin_yun@sjtu.edu.cn,dcsdjs@nus.edu.sg)

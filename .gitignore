@@ -25,9 +25,11 @@ secrets*.json
 data/*
 !data/.gitkeep
 !data/README.md
-models/*
-!models/.gitkeep
-!models/README.md
+# models: keep per-method dir structure + docs, ignore weights/caches/zips
+models/vlbrandphish/*
+models/phishintention/*
+models/phishpedia/*
+!models/*/.gitkeep
 outputs/*
 !outputs/.gitkeep
 *.pt
