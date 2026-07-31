@@ -1,19 +1,21 @@
 # Project structure
 
-The package is organized by responsibility rather than by experiment order:
+The source is organized around the two reader workflows: training a model and running inference. Reusable model components are deliberately outside both workflows so inference never depends on training code.
 
 | Area | Responsibility | Public entry point |
 | --- | --- | --- |
-| `config/` | Repository-relative defaults and portable path resolution | imported by commands |
-| `data/` | Test-B records and the detection CSV contract | imported by detection/inference |
-| `detection/` | Top-k detector runtime and its MMDetection training adapter | `vlbrandphish detect` / `train-detector` |
-| `recognition/` | SigLIP encoders, shared fusion layers, and brand evidence repository | used by inference and brand training |
-| `decision/` | URL-domain extraction and final decision policy | used by inference |
-| `inference/` | End-to-end brand matching, caching, grid evaluation, and reports | `vlbrandphish infer` |
-| `training/brand/` | Brand-recognizer datasets, model, transforms, and trainer | `vlbrandphish train-brand` |
+| `components/brand/` | Shared SigLIP encoder, fusion layers, brand repository, and brand-name normalization | imported by training and inference |
+| `training/logo_detection/` | MMDetection/DINO configuration, dataset construction, loss patching, training, testing, and tiled inference | `vlbrandphish train-detector` |
+| `training/brand_recognition/` | Shared brand-training data/model/loss/optimizer code and orchestration | `vlbrandphish train-brand` |
+| `training/brand_recognition/common/` | Data, model, loss, optimizer, prompts, transforms, and utilities shared by both stages | imported by Stage-1 and Stage-2 |
+| `training/brand_recognition/stage1/` | Pairwise SigLIP training and validation routines | selected by `stage: stage1` |
+| `training/brand_recognition/stage2/` | Dual-fusion and TriSig training and validation routines | selected by `stage: stage2` |
+| `inference/` | Input loading, detector execution, model/repository loading, brand evidence, domain verification, evaluation, caching, and the end-to-end pipeline | `vlbrandphish detect` / `vlbrandphish infer` |
 | `experiments/` | Ablations, analyses, paper figures, and data-preparation studies | module-specific commands |
 | `tools/annotation/` | VOC/XML annotation maintenance utilities | module-specific commands |
 
-`scripts/train_brand.py` is deliberately a thin compatibility wrapper, not a second implementation. The detector wrappers live inside `src/vlbrandphish/detection/training/`; they configure MMDetection/DINO but do not vendor either upstream project.
+The dependency direction is intentional: `training/` and `inference/` may import `components/`, but neither may import the other. Experiments may call public workflow modules, but production inference and training modules must not import experiments or annotation tooling.
+
+`scripts/train_brand.py` remains a thin compatibility wrapper, not a second implementation. The detector wrappers configure MMDetection/DINO but do not vendor either upstream project.
 
 All paper-specific outputs, model weights, screenshots, and caches stay outside Git. This keeps source history compact and lets a tagged source revision map cleanly to a separately archived artifact bundle.

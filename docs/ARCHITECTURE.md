@@ -6,7 +6,7 @@ This document records the source-layout review used for the public VLBrandPhish 
 
 PhishIntention has a useful `src/` package, a single package command, configuration at the package boundary, and focused step-level tests. VLBrandPhish adopts these ideas through a `src/vlbrandphish/` package, the `vlbrandphish` command, portable path resolution, and dependency-free tests.
 
-PhishPedia makes its core research path easy to locate: logo recognition, matching, and the final wrapper are visibly separated. VLBrandPhish preserves that discoverability while making the boundaries executable: `detection/`, `recognition/`, `decision/`, and `inference/` are separate packages with explicit imports.
+PhishPedia makes its core research path easy to locate: logo recognition, matching, and the final wrapper are visibly separated. VLBrandPhish follows that reader journey directly: all training lives in `training/`, all deployable inference lives in `inference/`, and reusable model parts live in `components/`.
 
 ## Problems intentionally avoided
 
@@ -17,26 +17,27 @@ PhishPedia makes its core research path easy to locate: logo recognition, matchi
 | A wide positional tuple used as an implicit system configuration | Paths are a named `DefaultPaths` dataclass; record and result structures are dataclasses. |
 | Experiment-specific assumptions inside the production path | Prompt ablations, protocol comparisons, diagnostics, paper figures, and data preparation live in `experiments/`. |
 | Cache files written into source or brand-library directories | Cache locations are explicit command inputs and default under ignored output/cache locations. |
-| Duplicate model components in training and inference | `recognition/fusion.py` owns the shared residual adapter and logo-type router. |
+| Duplicate model components in training and inference | `components/brand/fusion.py` owns the shared residual adapter and logo-type router. |
 | Hard dependency on a sibling research repository | Domain policy contains a local, documented implementation and does not load another repository at runtime. |
-| Training tools outside the package with separate import conventions | Brand and detector training now reside under `training/brand/` and `detection/training/`. |
+| Training tools outside the package with separate import conventions | Logo-detector and brand-recognizer training now reside under `training/logo_detection/` and `training/brand_recognition/`. |
 
 ## Package boundaries
 
 ```text
-data ───────────────► detection ───────┐
-  │                                    │
-  └────────────────────────────────► inference ───► decision
-                                     │       │
-                                     ▼       ▼
-                                recognition  reports/caches
+training/logo_detection  --> components/brand
+training/brand_recognition/stage1  --\
+training/brand_recognition/stage2  ---+--> components/brand
 
-training/brand ───────────────────────► recognition/fusion
-experiments and tools ─────────────────► public runtime APIs
+inference/data_loader --> inference/logo_detection --> inference/brand_recognition
+                                                        |
+                                                        v
+                                     inference/domain_verification --> inference/evaluation
+                                                        |
+                                                        v
+                                               inference/pipeline
 ```
 
-The arrows express allowed dependency direction. Experiments may call runtime components, but runtime modules must not import experiments or annotation tooling.
-
+`components/brand/` is the only shared model layer. The arrows express allowed dependency direction: training and inference may depend on components; inference must not import training; runtime modules must not import experiments or annotation tooling.
 ## Naming rules
 
 - Production modules use a responsibility name: `runner`, `repository`, `domains`, `policy`, or `encoders`.

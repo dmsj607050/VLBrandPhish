@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ...recognition.fusion import LogoTypeRouter, ResidualAdapter
+from ....components.brand.fusion import LogoTypeRouter, ResidualAdapter
 
 
 @dataclass

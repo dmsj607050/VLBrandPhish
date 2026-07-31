@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from vlbrandphish.decision.domains import registered_domain
+from vlbrandphish.inference.domain_verification import registered_domain
 from vlbrandphish.inference.types import Metrics
 
 
@@ -30,6 +30,37 @@ class ArchitectureContractsTest(unittest.TestCase):
             config = (root / "configs" / "training" / name).read_text(encoding="utf-8")
             self.assertIn("seed: 42", config)
             self.assertIn("deterministic: true", config)
+
+    def test_workflow_oriented_source_layout(self) -> None:
+        root = Path(__file__).resolve().parents[2] / "src" / "vlbrandphish"
+        expected = (
+            "components/brand/encoders.py",
+            "components/brand/fusion.py",
+            "inference/input_loading.py",
+            "inference/logo_detection.py",
+            "inference/model_loading.py",
+            "inference/brand_recognition.py",
+            "inference/domain_verification.py",
+            "inference/evaluation.py",
+            "inference/pipeline.py",
+            "training/logo_detection/train.py",
+            "training/brand_recognition/common/model.py",
+            "training/brand_recognition/stage1/trainer.py",
+            "training/brand_recognition/stage2/trainer.py",
+        )
+        for relative in expected:
+            self.assertTrue((root / relative).is_file(), relative)
+
+        legacy_modules = (
+            "detection/runner.py",
+            "recognition/encoders.py",
+            "decision/domains.py",
+            "data/detections.py",
+            "training/brand/engine.py",
+            "inference/runner.py",
+        )
+        for relative in legacy_modules:
+            self.assertFalse((root / relative).is_file(), relative)
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,8 +10,8 @@ from typing import Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urlparse
 
 from ...config.paths import default_run_dir, resolve_default_paths
-from ...core.brands import normalize_brand_key, parse_semicolon_list
-from ...decision.domains import registered_domain
+from ...components.brand.naming import normalize_brand_key, parse_semicolon_list
+from ...inference.domain_verification import registered_domain
 
 
 def _to_int(v: object, default: int = 0) -> int:
