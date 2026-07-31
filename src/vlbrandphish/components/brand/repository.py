@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 import torch
 from PIL import Image, UnidentifiedImageError
 
-from ..core.brands import normalize_brand_key, parse_semicolon_list, read_nonempty_lines
+from .naming import normalize_brand_key, parse_semicolon_list, read_nonempty_lines
 from .encoders import CLIPEncoder
 
 

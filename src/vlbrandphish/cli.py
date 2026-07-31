@@ -39,13 +39,13 @@ def main(argv: Sequence[str] | None = None) -> None:
         parser.error(f"unknown command: {command}")
 
     if command == "detect":
-        from .detection.runner import main as command_main
+        from .inference.logo_detection import main as command_main
     elif command == "infer":
-        from .inference.runner import main as command_main
+        from .inference.pipeline import main as command_main
     elif command == "train-brand":
-        from .training.brand.cli import main as command_main
+        from .training.brand_recognition.cli import main as command_main
     else:
-        from .detection.training.train import main as command_main
+        from .training.logo_detection.train import main as command_main
 
     _dispatch(command_main, arguments)
 

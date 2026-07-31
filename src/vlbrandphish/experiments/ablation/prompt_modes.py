@@ -20,8 +20,8 @@ except Exception:
     roc_auc_score = None
 
 from ...config.paths import default_run_dir, resolve_default_paths
-from ...core.brands import normalize_brand_key
-from ...data.detections import DetectionSample, read_detection_top3_csv
+from ...components.brand.naming import normalize_brand_key
+from ...inference.data_contracts import DetectionSample, read_detection_top3_csv
 from ...inference.cache import (
     _build_query_cache_key,
     _hash_dir_tree_signature,
@@ -33,23 +33,19 @@ from ...inference.cache import (
     _save_precomputed_cache,
     _save_query_cache,
 )
-from ...inference.runner import (
-    Metrics,
-    PrecomputedData,
-    QueryFeatureData,
+from ...inference.brand_recognition import _compute_alpha_output, _precompute_query_features
+from ...inference.evaluation import (
     _build_brand_level_reports,
     _build_prediction_rows,
-    _compute_alpha_output,
     _evaluate_threshold,
-    _inspect_detection_csv_format,
-    _iter_items,
     _objective_value,
     _parse_grid_values,
-    _precompute_query_features,
-    _print_runtime_format_info,
 )
-from ...recognition.encoders import CLIPEncoder
-from ...recognition.repository import BrandRepository, _list_brand_dirs, _list_logo_paths, _load_brand_domains, _read_dbi_texts
+from ...inference.input_loading import _inspect_detection_csv_format, _iter_items
+from ...inference.pipeline import _print_runtime_format_info
+from ...inference.types import Metrics, PrecomputedData, QueryFeatureData
+from ...components.brand.encoders import CLIPEncoder
+from ...components.brand.repository import BrandRepository, _list_brand_dirs, _list_logo_paths, _load_brand_domains, _read_dbi_texts
 
 
 SIMPLE13_PROMPT_TEMPLATES: Tuple[str, ...] = (

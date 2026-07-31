@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
-from .domains import registered_domain
+from .domain_verification import registered_domain
 
 
 @dataclass

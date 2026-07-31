@@ -6,9 +6,8 @@ import time
 from typing import List, Tuple
 
 from ..config.paths import default_run_dir, resolve_default_paths
-from ..data.detections import DetectionSample, write_detection_top3_csv
-from ..data.test_b import TestBSample, load_testb_samples
-from .mmdet import MMDetTopKDetector
+from .data_contracts import DetectionSample, write_detection_top3_csv
+from .data_loader import TestBSample, load_testb_samples
 
 try:
     from tqdm import tqdm
@@ -74,6 +73,8 @@ def main() -> None:
         max_phish=int(args.max_phish),
     )
     print(f"[detection] loaded samples={len(samples)}")
+
+    from .logo_detector import MMDetTopKDetector
 
     detector = MMDetTopKDetector(
         config_path=os.path.abspath(args.det_config),

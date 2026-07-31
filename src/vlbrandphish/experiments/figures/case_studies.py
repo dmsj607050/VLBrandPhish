@@ -21,8 +21,8 @@ import torch
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from PIL import Image, ImageDraw
 
-from ...data.detections import DetectionSample, read_detection_top3_csv
-from ...recognition.repository import _list_logo_paths
+from ...inference.data_contracts import DetectionSample, read_detection_top3_csv
+from ...components.brand.repository import _list_logo_paths
 
 
 CASE_DEFS: Dict[str, Dict[str, Any]] = {

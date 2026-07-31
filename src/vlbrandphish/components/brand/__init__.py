@@ -1,4 +1,4 @@
-"""Brand representation, encoding, and similarity retrieval."""
+"""Brand representation, encoding, and retrieval components."""
 
 from .encoders import CLIPEncoder
 from .repository import BrandRepository, build_brand_repository

@@ -7,10 +7,8 @@ import math
 import os
 import sys
 
-from mmengine.runner import Runner
 
 from .config import TrainConfig
-from .model import build_mmdet_cfg
 
 
 class _SuppressStartupNoiseFilter(logging.Filter):
@@ -150,6 +148,15 @@ def main() -> None:
         help="Only dump final patched MMDet config to work_dir/patched_config.py and exit.",
     )
     args = parser.parse_args()
+
+    try:
+        from mmengine.runner import Runner
+        from .model import build_mmdet_cfg
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(
+            "Detector training requires the optional MMDetection stack. "
+            "Install requirements-detector.txt with a PyTorch/CUDA-compatible build first."
+        ) from exc
 
     if not args.verbose_startup:
         _install_startup_log_filter()

@@ -6,9 +6,9 @@ import argparse
 from pathlib import Path
 from typing import Sequence
 
-from .config import load_config, resolve_stage_paths, split_pipeline_config
+from .common.config import load_config, resolve_stage_paths, split_pipeline_config
 from .engine import run_training
-from .utils import print_config
+from .common.utils import print_config
 
 
 def main(argv: Sequence[str] | None = None) -> None:

@@ -8,7 +8,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 
 from ...config.paths import resolve_default_paths
-from ...core.brands import normalize_brand_key
+from ...components.brand.naming import normalize_brand_key
 
 
 def _discover_latest_stage2_summary(outputs_dir: str) -> str:

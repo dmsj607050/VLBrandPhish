@@ -10,8 +10,8 @@ from typing import Any, List, Optional, Tuple
 import numpy as np
 import torch
 
-from ..data.detections import DetectionSample
-from ..recognition.repository import BrandRepository
+from .data_contracts import DetectionSample
+from ..components.brand.repository import BrandRepository
 from .types import PrecomputedData, QueryFeatureData
 
 

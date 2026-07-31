@@ -15,22 +15,30 @@ Datasets, screenshots, trained weights, caches, and experimental run outputs are
 
 ```text
 VLBrandPhish-main/
-├── configs/                 # Training configurations and prompt templates
-├── data/                    # Local-only datasets and brand library (ignored)
-├── docs/                    # Reproducibility and release documentation
-├── models/                  # Local-only checkpoints (ignored)
-├── scripts/                 # Thin backwards-compatible command wrappers
-├── src/vlbrandphish/
-│   ├── config/              # Portable repository paths and configuration
-│   ├── data/                # Dataset records and CSV contracts
-│   ├── detection/           # Logo detection runtime and MMDetection training
-│   ├── recognition/         # Encoders, fusion modules, and brand repository
-│   ├── decision/            # Domain parsing and phishing decision policy
-│   ├── inference/           # End-to-end prediction runtime
-│   ├── training/brand/      # SigLIP brand-recognizer training
-│   ├── experiments/         # Ablations, analysis, figures, and preparation
-│   └── tools/annotation/    # Dataset annotation utilities
-└── tests/                   # Lightweight, data-free checks
+|-- configs/                         # Training configurations and prompt templates
+|-- data/                            # Local-only datasets and brand library (ignored)
+|-- docs/                            # Reproducibility and release documentation
+|-- models/                          # Local-only checkpoints (ignored)
+|-- scripts/                         # Thin backwards-compatible command wrappers
+|-- src/vlbrandphish/
+|   |-- components/brand/            # Shared encoder, fusion, brand repository, naming
+|   |-- config/                      # Portable repository paths and configuration
+|   |-- inference/                   # Complete inference workflow
+|   |   |-- data_loader.py           # Input/sample loading
+|   |   |-- logo_detection.py        # Logo detection command
+|   |   |-- model_loading.py         # Encoder and brand-repository loading
+|   |   |-- brand_recognition.py     # Logo-crop encoding and evidence fusion
+|   |   |-- domain_verification.py   # Domain-brand consistency checks
+|   |   |-- evaluation.py            # Metrics and reports
+|   |   `-- pipeline.py              # End-to-end inference command
+|   |-- training/
+|   |   |-- logo_detection/          # MMDetection/DINO logo-detector training
+|   |   `-- brand_recognition/       # Brand-recognizer training
+|   |       |-- common/              # Shared data/model/loss/optimizer code`r`n|   |       |-- stage1/              # Pairwise SigLIP stage
+|   |       `-- stage2/              # Fusion/TriSig stage
+|   |-- experiments/                 # Ablations, analysis, figures, and preparation
+|   `-- tools/annotation/            # VOC/XML annotation utilities
+`-- tests/                           # Lightweight, data-free checks
 ```
 
 ## Installation
