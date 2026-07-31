@@ -38,6 +38,8 @@ outputs/*
 *.npy
 *.pkl
 *.pickle
+artifact_manifest.json
+run_metadata*.json
 
 # Tooling and platform files
 .DS_Store

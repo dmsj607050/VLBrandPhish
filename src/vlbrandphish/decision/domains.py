@@ -304,11 +304,15 @@ def _extract_domain_parts_fallback(url: str) -> Tuple[str, str, str]:
 
 
 def extract_domain_parts(url: str) -> Tuple[str, str, str]:
-    # PhishIntention uses tldextract; keep same route when available.
+    """Extract a registrable domain without fetching a public suffix list at runtime."""
     try:
         import tldextract  # type: ignore
 
-        ext = tldextract.extract(str(url or ""))
+        # Use tldextract's bundled suffix snapshot only. This keeps offline
+        # artifact evaluation deterministic and avoids an implicit network
+        # request or a machine-specific cache.
+        extractor = tldextract.TLDExtract(suffix_list_urls=None)
+        ext = extractor(str(url or ''))
         suffix = str(ext.suffix or "")
         domain = str(ext.domain or "")
         if not domain or not suffix:

@@ -33,6 +33,17 @@ def load_testb_samples(
     max_benign: int = -1,
     max_phish: int = -1,
 ) -> List[TestBSample]:
+    valid_roots = [
+        str(root)
+        for root in (benign_root, phish_root)
+        if str(root or "").strip() and os.path.isdir(str(root))
+    ]
+    if not valid_roots:
+        raise FileNotFoundError(
+            "Neither benign_root nor phish_root is an accessible directory. "
+            "Provide at least one Test-B input root."
+        )
+
     out: List[TestBSample] = []
 
     benign_count = 0
@@ -103,4 +114,9 @@ def load_testb_samples(
             if max_phish >= 0 and phish_count >= int(max_phish):
                 break
 
+    if not out:
+        raise RuntimeError(
+            "No evaluation samples were found under the supplied input roots. "
+            "Check the documented Test-B directory layout and the selected sample limits."
+        )
     return out

@@ -33,3 +33,35 @@ vlbrandphish train-brand --config configs/training/stage2_trisig_ot_safe.yaml
 3. Save the command line, input-manifest checksums, configuration, code commit, and output metrics together.
 
 Use `--out-dir` to make each evaluation output location explicit. Generated CSV files, caches, predictions, figures, and checkpoints are ignored by default.
+
+## Artifact preflight
+
+Before releasing an evaluation artifact, validate the tracked tree without loading a dataset or checkpoint:
+
+```bash
+python scripts/verify_artifact.py
+```
+
+Generate a deterministic SHA-256 manifest for the exact files that reviewers can access. Do not include local data, private URLs, model weights, or Git metadata unless their release terms permit it:
+
+```bash
+python scripts/create_artifact_manifest.py \
+  --include README.md --include LICENSE --include pyproject.toml \
+  --include configs --include docs --include scripts --include src \
+  --output artifact_manifest.json
+```
+
+For every reported table, archive the command line, the frozen YAML file, the exact checkpoint and data checksums, random seeds, package versions, CUDA/runtime version, GPU model, and the resulting metrics. The repository alone cannot reproduce a paper result without this run-level evidence.
+
+Create the run-level record immediately after each run. It hashes the frozen configuration and declared inputs, records the seed and package versions, and redacts absolute paths outside the repository root. The output is ignored by Git so it cannot be published by accident:
+
+```bash
+python scripts/record_run_metadata.py \
+  --config configs/training/stage1_siglip.yaml \
+  --input data/manifests/stage1_test.json \
+  --input models/brand_recognizer.pt \
+  --seed 42 --collect-torch-runtime \
+  --output outputs/table_2/run_metadata.json
+```
+
+Use `--include-git` only for a non-anonymous archival copy. A commit identifier can link a submission to the public repository, so it must not appear in a double-blind artifact. The current training configurations fix `seed: 42`, enable deterministic cuDNN behavior, and request PyTorch deterministic algorithms in warn-only mode; the training engine also seeds Python, NumPy, PyTorch, and data-loader workers. Exact cross-platform equality is still not guaranteed, so record any emitted deterministic-operation warnings and the CUDA/runtime details.
