@@ -33,6 +33,7 @@ class MMDetTopKDetector:
         score_thr: float = 0.05,
         topk: int = 3,
     ) -> List[Tuple[Tuple[float, float, float, float], float]]:
+        """Detect and rank the highest-confidence logo boxes in one screenshot."""
         try:
             from mmdet.apis import inference_detector  # type: ignore
         except ModuleNotFoundError as error:

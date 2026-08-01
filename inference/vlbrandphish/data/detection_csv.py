@@ -174,6 +174,7 @@ def read_detection_top3_csv(path: str) -> List[DetectionSample]:
 
 
 def detection_to_csv_row(sample: DetectionSample) -> Dict[str, object]:
+    """Serialize one detection sample into the stable top-k CSV row format."""
     row: Dict[str, object] = {
         "image_path": sample.image_path,
         "url": sample.url,

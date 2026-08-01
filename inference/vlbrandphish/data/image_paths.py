@@ -11,7 +11,7 @@ from PIL import Image
 from .detection_csv import DetectionSample
 
 
-def _safe_crop(image: Image.Image, bbox: Tuple[float, float, float, float]) -> Optional[Image.Image]:
+def crop_logo_region(image: Image.Image, bbox: Tuple[float, float, float, float]) -> Optional[Image.Image]:
     """Crop a logo region from a screenshot, clamping coordinates to image bounds.
 
     Returns ``None`` when the clamped box is empty (degenerate), so callers can skip

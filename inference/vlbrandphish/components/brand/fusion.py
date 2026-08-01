@@ -8,6 +8,7 @@ import torch.nn.functional as functional
 
 
 class ResidualAdapter(nn.Module):
+    """Learn a residual feature correction for query logo embeddings."""
     def __init__(self, embed_dim: int, hidden_dim: int = 256, dropout: float = 0.1) -> None:
         super().__init__()
         self.net = nn.Sequential(
@@ -18,6 +19,7 @@ class ResidualAdapter(nn.Module):
         )
 
     def forward(self, features: torch.Tensor) -> torch.Tensor:
+        """Apply the learned residual projection to an embedding batch."""
         return self.net(features)
 
 
@@ -51,6 +53,7 @@ class LogoTypeRouter(nn.Module):
         ocr_strength: torch.Tensor | None = None,
         branch_stats: torch.Tensor | None = None,
     ) -> torch.Tensor:
+        """Return normalized branch weights for the available recognition evidence."""
         if self.out_dim == 2:
             if branch_stats is None:
                 branch_stats = torch.zeros(

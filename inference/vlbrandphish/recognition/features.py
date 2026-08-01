@@ -14,7 +14,7 @@ from ..components.brand.naming import normalize_brand_key
 from ..components.brand.repository import BrandRepository, score_query_features
 from ..data.detection_csv import DetectionSample
 from ..decision.domain import phishintention_domain_accept, registered_domain
-from ..data.image_paths import _safe_crop, resolve_image_path
+from ..data.image_paths import crop_logo_region, resolve_image_path
 from ..runtime.progress import iter_with_progress
 from ..runtime.types import AlphaOutput, PrecomputedData, QueryFeatureData
 
@@ -145,7 +145,7 @@ def precompute_query_features(
                 crops: List[Image.Image] = []
                 crop_slots: List[int] = []
                 for j, box in enumerate(det.bboxes[: int(max_q)]):
-                    crop = _safe_crop(rgb, box)
+                    crop = crop_logo_region(rgb, box)
                     if crop is not None:
                         crops.append(crop)
                         crop_slots.append(int(j))

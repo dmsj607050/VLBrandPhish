@@ -103,6 +103,7 @@ def build_prediction_rows(
     threshold: float,
     pred_vec: np.ndarray,
 ) -> List[Dict[str, object]]:
+    """Build per-screenshot prediction records for CSV and error analysis."""
     rows: List[Dict[str, object]] = []
     n = len(detections)
     for i in range(n):

@@ -17,6 +17,7 @@ class Metrics:
     brand_correct_phish: int = 0
 
     def to_dict(self) -> Dict[str, float]:
+        """Return confusion-matrix counts and derived metrics as a mapping."""
         tp = float(self.tp)
         tn = float(self.tn)
         fp = float(self.fp)

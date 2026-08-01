@@ -127,6 +127,7 @@ def list_logo_paths(brand_dir: str) -> List[str]:
 
 
 def read_dbi_texts(brand_dbi_dir: str) -> List[str]:
+    """Read the optional DBI-5 textual evidence for one reference brand."""
     candidates = [
         os.path.join(brand_dbi_dir, fn)
         for fn in sorted(os.listdir(brand_dbi_dir))
@@ -223,6 +224,7 @@ def build_brand_repository(
     brand_text_mode: str = "dbi5",
     custom_prompt_file: str = "",
 ) -> BrandRepository:
+    """Encode reference logos and prompts into an in-memory brand repository."""
     logo_library_dir = os.path.abspath(logo_library_dir)
     dbi5_dir = os.path.abspath(dbi5_dir)
     normal_urls_csv = os.path.abspath(normal_urls_csv)

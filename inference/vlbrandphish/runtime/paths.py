@@ -23,6 +23,7 @@ class DefaultPaths:
     detector_ckpt: str
 
     def to_dict(self) -> Dict[str, str]:
+        """Return a serializable mapping of resolved default paths."""
         return dict(asdict(self))
 
 

@@ -205,6 +205,7 @@ class CLIPEncoder:
             self.embed_dim = int(self.model.get_image_features(pixel_values=dummy).shape[-1])
 
     def encode_images(self, images: Sequence[Image.Image], batch_size: int = 64) -> torch.Tensor:
+        """Encode reference logo images into normalized embedding vectors."""
         if not images:
             return torch.empty((0, self.embed_dim), dtype=torch.float32, device=self.device)
 
@@ -251,6 +252,7 @@ class CLIPEncoder:
         return torch.cat(out, dim=0)
 
     def encode_texts(self, texts: Sequence[str], batch_size: int = 256) -> torch.Tensor:
+        """Encode brand prompt texts into normalized embedding vectors."""
         if not texts:
             return torch.empty((0, self.embed_dim), dtype=torch.float32, device=self.device)
 

@@ -18,6 +18,7 @@ from .types import PrecomputedData, QueryFeatureData
 # Input signatures deliberately use metadata, not content, so cache-key creation is fast.
 
 def hash_file_signature(path: str, h: "hashlib._Hash") -> None:
+    """Hash a file path and metadata without reading the full file contents."""
     path = os.path.abspath(str(path))
     h.update(path.encode("utf-8", errors="ignore"))
     if not os.path.isfile(path):
@@ -28,6 +29,7 @@ def hash_file_signature(path: str, h: "hashlib._Hash") -> None:
 
 
 def hash_dir_tree_signature(root: str, h: "hashlib._Hash", suffixes: Optional[Tuple[str, ...]] = None) -> None:
+    """Hash a deterministic directory listing for cache invalidation."""
     root = os.path.abspath(str(root))
     h.update(root.encode("utf-8", errors="ignore"))
     if not os.path.isdir(root):
@@ -90,6 +92,7 @@ def build_repository_cache_key(
 # Repository cache serializes CPU tensors so it can later load onto any selected device.
 
 def save_brand_repository_cache(path: str, repo: BrandRepository) -> None:
+    """Persist an encoded brand repository for reuse in later runs."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     torch.save(
         {
@@ -106,6 +109,7 @@ def save_brand_repository_cache(path: str, repo: BrandRepository) -> None:
 
 
 def load_brand_repository_cache(path: str, device: torch.device) -> BrandRepository:
+    """Load and validate a previously encoded brand repository cache."""
     payload = torch.load(os.path.abspath(path), map_location="cpu")
     if not isinstance(payload, dict):
         raise RuntimeError(f"Invalid repository cache format: {path}")
@@ -139,6 +143,7 @@ def load_brand_repository_cache(path: str, device: torch.device) -> BrandReposit
 def build_feature_cache_key(
     *, det_csv: str, max_samples: int, topk: int, benign_root: str, phish_root: str, repo_cache_key: str
 ) -> str:
+    """Build a cache key for screenshot features and their repository context."""
     h = hashlib.md5()
     h.update(b"stage2_feature_cache_v2")
     hash_file_signature(det_csv, h)
@@ -153,6 +158,7 @@ def build_feature_cache_key(
 def build_query_cache_key(
     *, brand_ckpt: str, det_csv: str, max_samples: int, topk: int, benign_root: str, phish_root: str
 ) -> str:
+    """Build a cache key for query crops before repository scoring."""
     h = hashlib.md5()
     h.update(b"stage2_query_cache_v2")
     hash_file_signature(brand_ckpt, h)
@@ -165,6 +171,7 @@ def build_query_cache_key(
 
 
 def save_query_cache(path: str, query_data: QueryFeatureData) -> None:
+    """Persist query crop features and route weights in a compact NPZ file."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     np.savez_compressed(
         os.path.abspath(path),
@@ -180,6 +187,7 @@ def save_query_cache(path: str, query_data: QueryFeatureData) -> None:
 
 
 def load_query_cache(path: str) -> QueryFeatureData:
+    """Load query crop features and route weights from an NPZ cache."""
     archive = np.load(os.path.abspath(path), allow_pickle=True)
     stats = json.loads(str(np.asarray(archive["resolve_stats_json"], dtype=object).reshape(-1)[0]))
     if not isinstance(stats, dict):
@@ -202,6 +210,7 @@ def load_query_cache(path: str) -> QueryFeatureData:
 
 
 def truncate_detections_topk(detections: List[DetectionSample], topk: int) -> List[DetectionSample]:
+    """Return copies of detections retaining no more than the requested top-k boxes."""
     if int(topk) <= 0:
         return detections
     return [
@@ -219,6 +228,7 @@ def truncate_detections_topk(detections: List[DetectionSample], topk: int) -> Li
 
 
 def slice_query_data_topk(query_data: QueryFeatureData, topk: int) -> QueryFeatureData:
+    """Slice cached query tensors to a requested number of detector boxes."""
     if int(topk) <= 0:
         return query_data
     if query_data.query_feat.ndim != 3 or query_data.query_mask.ndim != 2:
@@ -278,6 +288,7 @@ def find_compatible_query_cache(*, cache_dir: str, n_samples: int, topk: int) ->
 
 
 def save_precomputed_cache(path: str, precomputed: PrecomputedData) -> None:
+    """Persist precomputed brand similarities in a compact NPZ cache."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     np.savez_compressed(
         os.path.abspath(path),
@@ -294,6 +305,7 @@ def save_precomputed_cache(path: str, precomputed: PrecomputedData) -> None:
 
 
 def load_precomputed_cache(path: str) -> PrecomputedData:
+    """Load precomputed brand similarities from an NPZ cache."""
     archive = np.load(os.path.abspath(path), allow_pickle=True)
     stats = json.loads(str(np.asarray(archive["resolve_stats_json"], dtype=object).reshape(-1)[0]))
     if not isinstance(stats, dict):
