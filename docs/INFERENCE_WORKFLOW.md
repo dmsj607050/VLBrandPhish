@@ -27,7 +27,7 @@ predictions.csv + metrics.json + summary.json + run metadata
 | --- | --- | --- | --- |
 | `data/` | Stable detection-CSV schema, test-set loading, and screenshot resolution | sample roots and Stage-1 CSV | `DetectionSample` records and image crops |
 | `detection/` | Runs the logo detector and keeps the top-k boxes per screenshot | detector config, detector checkpoint, benign/phishing roots | Stage-1 detection CSV |
-| `recognition/` | Loads the brand recognizer and reference-logo/text repository; encodes detected crops | brand checkpoint, optional local SigLIP directory, logo library, DBI-5 prompts | image/text similarities and candidate brands |
+| `recognition/` | Loads the brand recognizer and references; encodes crops with fixed 0.8/0.2 fusion | checkpoint, SigLIP directory, logos, prompts | fixed-fusion brand scores |
 | `decision/` | Checks predicted brand against URL/domain evidence | predicted brand and screenshot URL | brand/domain acceptance signal |
 | `evaluation/` | Applies thresholds and writes sample-, brand-, and aggregate metrics | similarities, labels, decisions | predictions and metric reports |
 | `runtime/` | Owns only paths, cache keys/files, and typed intermediate records | command arguments | reusable caches and deterministic paths |
@@ -66,8 +66,7 @@ python cli.py infer \
 For a small smoke run, use `--max-benign 1 --max-phish 1` on Stage 1, then pass the
 resulting CSV to Stage 2 with `--max-samples 2`. Stage 1 requires a compatible
 MMDetection environment; Stage 2 requires PyTorch, Transformers, and SentencePiece.
-Do not enable `--grid-search` on a reported test split unless the threshold-selection
-protocol is explicitly documented.
+Stage 2 has no weight or threshold search: it always uses image weight 0.8, text weight 0.2, and decision threshold 0.62.
 
 ## One-click Windows runner
 

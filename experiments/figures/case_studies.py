@@ -23,6 +23,7 @@ from PIL import Image, ImageDraw
 
 from inference.vlbrandphish.data.detection_csv import DetectionSample, read_detection_top3_csv
 from inference.vlbrandphish.components.brand.repository import list_logo_paths
+from inference.vlbrandphish.recognition.features import FIXED_IMAGE_WEIGHT, FIXED_TEXT_WEIGHT
 
 
 CASE_DEFS: Dict[str, Dict[str, Any]] = {
@@ -116,42 +117,9 @@ def _brand_display_name(value: str) -> str:
     return str(COMPACT_BRAND_DISPLAY.get(raw, raw))
 
 
-def _sigmoid_np(x: np.ndarray) -> np.ndarray:
-    x = np.asarray(x, dtype=np.float32)
-    x = np.clip(x, -50.0, 50.0)
-    return 1.0 / (1.0 + np.exp(-x))
-
-
-def _top2_margin(scores: np.ndarray) -> np.ndarray:
-    arr = np.asarray(scores, dtype=np.float32)
-    if arr.ndim != 2 or arr.shape[1] <= 0:
-        return np.zeros((arr.shape[0] if arr.ndim >= 1 else 0,), dtype=np.float32)
-    if arr.shape[1] == 1:
-        return np.asarray(arr[:, 0], dtype=np.float32)
-    part = np.partition(arr, kth=arr.shape[1] - 2, axis=1)
-    top2 = np.asarray(part[:, -2:], dtype=np.float32)
-    top2.sort(axis=1)
-    return np.asarray(top2[:, 1] - top2[:, 0], dtype=np.float32)
-
-
-def _compute_fusion_outputs(summary: Dict[str, Any], sim_img: np.ndarray, sim_txt: np.ndarray) -> Tuple[str, np.ndarray, np.ndarray]:
-    sel = dict(summary.get("selection") or {})
-    method = str(sel.get("fusion_method", "linear_alpha") or "linear_alpha").strip().lower()
-    alpha = float(sel.get("best_alpha", 0.5) or 0.5)
-    gate_k = float(sel.get("best_gate_k", 0.0) or 0.0)
-    gate_b = float(sel.get("best_gate_b", 0.0) or 0.0)
-
-    if method == "dynamic_margin_gate":
-        margin_img = _top2_margin(sim_img)
-        margin_txt = _top2_margin(sim_txt)
-        alpha_vec = _sigmoid_np(float(gate_k) * (margin_img - margin_txt) + float(gate_b))
-    else:
-        method = "linear_alpha"
-        alpha_vec = np.full((int(sim_img.shape[0]),), float(alpha), dtype=np.float32)
-
-    fused = np.asarray(alpha_vec.reshape(-1, 1) * sim_img + (1.0 - alpha_vec.reshape(-1, 1)) * sim_txt, dtype=np.float32)
-    return method, alpha_vec.astype(np.float32), fused
-
+def _compute_fixed_fusion_scores(sim_img: np.ndarray, sim_txt: np.ndarray) -> np.ndarray:
+    """Apply the only published image/text fusion rule used in case figures."""
+    return np.asarray(FIXED_IMAGE_WEIGHT * sim_img + FIXED_TEXT_WEIGHT * sim_txt, dtype=np.float32)
 
 def _discover_latest_stage2_summary(outputs_dir: str) -> str:
     root = Path(outputs_dir).resolve()
@@ -312,12 +280,12 @@ def _mode_scores_for_brand(
     q_feats: np.ndarray,
     logo_mat: np.ndarray,
     text_proto: np.ndarray,
-    alpha: float,
+    image_weight: float,
 ) -> Dict[str, Any]:
     txt_per_q = np.asarray(q_feats @ text_proto, dtype=np.float32).reshape(-1)
     img_qk = np.asarray(q_feats @ logo_mat.T, dtype=np.float32)
     img_per_q = np.asarray(img_qk.max(axis=1), dtype=np.float32).reshape(-1)
-    fused_per_q = np.asarray(float(alpha) * img_per_q + (1.0 - float(alpha)) * txt_per_q, dtype=np.float32).reshape(-1)
+    fused_per_q = np.asarray(float(image_weight) * img_per_q + (1.0 - float(image_weight)) * txt_per_q, dtype=np.float32).reshape(-1)
 
     img_q, img_k = np.unravel_index(int(np.argmax(img_qk)), img_qk.shape)
     txt_q = int(np.argmax(txt_per_q))
@@ -395,7 +363,7 @@ def _build_mode_prediction(
     logo_emb_all: np.ndarray,
     logo_mask_all: np.ndarray,
     logo_paths_by_brand: Dict[str, List[str]],
-    alpha_value: float,
+    image_weight: float,
 ) -> ModePrediction:
     mode_scores = np.asarray(mode_matrix[sample_index], dtype=np.float32).reshape(-1)
     sorted_scores = np.sort(mode_scores)
@@ -430,7 +398,7 @@ def _build_mode_prediction(
         q_feats=q_feats,
         logo_mat=brand_logo_emb,
         text_proto=brand_text_proto,
-        alpha=float(alpha_value),
+        image_weight=float(image_weight),
     )[mode]
 
     local_q = int(per_mode["query_slot_local"])
@@ -494,7 +462,7 @@ def _select_cases(
     logo_mask_all = np.asarray(torch.as_tensor(repo_payload["logo_mask"]).cpu(), dtype=bool)
     logo_paths_by_brand = _build_logo_paths_by_brand(summary["config"]["logo_library_dir"], brand_names)
 
-    fusion_method, alpha_vec, fused = _compute_fusion_outputs(summary, sim_img, sim_txt)
+    fused = _compute_fixed_fusion_scores(sim_img, sim_txt)
 
     pred_img_idx = np.asarray(np.argmax(sim_img, axis=1), dtype=np.int32)
     pred_txt_idx = np.asarray(np.argmax(sim_txt, axis=1), dtype=np.int32)
@@ -596,7 +564,7 @@ def _select_cases(
             logo_emb_all=logo_emb_all,
             logo_mask_all=logo_mask_all,
             logo_paths_by_brand=logo_paths_by_brand,
-            alpha_value=0.5,
+            image_weight=FIXED_IMAGE_WEIGHT,
         )
         image_mode = _build_mode_prediction(
             mode="image",
@@ -611,7 +579,7 @@ def _select_cases(
             logo_emb_all=logo_emb_all,
             logo_mask_all=logo_mask_all,
             logo_paths_by_brand=logo_paths_by_brand,
-            alpha_value=0.5,
+            image_weight=FIXED_IMAGE_WEIGHT,
         )
         fusion_mode = _build_mode_prediction(
             mode="fusion",
@@ -626,7 +594,7 @@ def _select_cases(
             logo_emb_all=logo_emb_all,
             logo_mask_all=logo_mask_all,
             logo_paths_by_brand=logo_paths_by_brand,
-            alpha_value=float(alpha_vec[i]),
+            image_weight=FIXED_IMAGE_WEIGHT,
         )
 
         case_cfg = CASE_DEFS[case_key]
@@ -1107,7 +1075,7 @@ def main() -> None:
 
     summary_out = {
         "stage2_summary": stage2_summary,
-        "best_alpha": float(summary["selection"]["best_alpha"]),
+        "decision": {"fusion_strategy": "fixed_linear", "image_weight": float(FIXED_IMAGE_WEIGHT), "text_weight": float(FIXED_TEXT_WEIGHT)},
         "n_selected_cases": int(len(selected_cases)),
         "selected_case_keys": [str(x.case_key) for x in selected_cases],
         "outputs": {

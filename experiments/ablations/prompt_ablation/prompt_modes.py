@@ -33,13 +33,17 @@ from inference.vlbrandphish.runtime.cache import (
     save_precomputed_cache,
     save_query_cache,
 )
-from inference.vlbrandphish.recognition.features import compute_alpha_output, precompute_query_features
+from inference.vlbrandphish.recognition.features import (
+    FIXED_DECISION_THRESHOLD,
+    FIXED_IMAGE_WEIGHT,
+    FIXED_TEXT_WEIGHT,
+    compute_fixed_fusion_output,
+    precompute_query_features,
+)
 from inference.vlbrandphish.evaluation.metrics import (
-    _build_brand_level_reports,
-    _build_prediction_rows,
-    _evaluate_threshold,
-    _objective_value,
-    _parse_grid_values,
+    build_brand_level_reports as _build_brand_level_reports,
+    build_prediction_rows as _build_prediction_rows,
+    evaluate_threshold as _evaluate_threshold,
 )
 from inference.vlbrandphish.data.image_paths import inspect_detection_csv_format
 from inference.vlbrandphish.runtime.progress import iter_with_progress
@@ -476,8 +480,8 @@ def _compare_row_from_result(result: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "mode": str(result.get("mode", "")),
         "display_name": str(result.get("display_name", "")),
-        "best_alpha": float(result.get("best_alpha", 0.0) or 0.0),
-        "best_threshold": float(result.get("best_threshold", 0.0) or 0.0),
+        "image_weight": float(result.get("image_weight", FIXED_IMAGE_WEIGHT) or FIXED_IMAGE_WEIGHT),
+        "threshold": float(result.get("threshold", FIXED_DECISION_THRESHOLD) or FIXED_DECISION_THRESHOLD),
         "accuracy": float(metrics.get("accuracy", 0.0) or 0.0),
         "precision": float(metrics.get("precision", 0.0) or 0.0),
         "recall": float(metrics.get("recall", 0.0) or 0.0),
@@ -570,16 +574,13 @@ def _evaluate_single_mode(
     max_logo_per_brand: int,
     image_batch_size: int,
     text_batch_size: int,
-    alpha_grid: List[float],
-    threshold_grid: List[float],
-    grid_objective: str,
     rebuild_repo_cache: bool,
     rebuild_feature_cache: bool,
     progress: bool,
     summary_json: str,
 ) -> Dict[str, Any]:
+    """Evaluate one prompt source under the fixed public inference protocol."""
     mode_out_dir = _ensure_dir(os.path.join(os.path.abspath(out_dir), mode_spec.name))
-
     repo_cache_key = _build_prompt_repo_cache_key(
         brand_ckpt=brand_ckpt,
         logo_library_dir=logo_library_dir,
@@ -593,14 +594,14 @@ def _evaluate_single_mode(
 
     repo_cache_hit = 0
     repo: Optional[BrandRepository] = None
-    t_repo = time.perf_counter()
+    repository_started = time.perf_counter()
     if (not bool(rebuild_repo_cache)) and os.path.isfile(repo_cache_path):
         try:
             repo = load_brand_repository_cache(repo_cache_path, encoder.device)
             repo_cache_hit = 1
             print(f"[cache] mode={mode_spec.name} brand_repo hit: {repo_cache_path}")
-        except Exception as e:
-            print(f"[cache] mode={mode_spec.name} brand_repo load failed, rebuilding: {type(e).__name__}: {e}")
+        except Exception as exc:
+            print(f"[cache] mode={mode_spec.name} brand_repo load failed, rebuilding: {type(exc).__name__}: {exc}")
 
     if repo is None:
         repo = _build_brand_repository_for_mode(
@@ -616,31 +617,22 @@ def _evaluate_single_mode(
         save_brand_repository_cache(repo_cache_path, repo)
         print(f"[cache] mode={mode_spec.name} brand_repo saved: {repo_cache_path}")
 
-    repo_elapsed = time.perf_counter() - t_repo
-    print(
-        f"[stage2] mode={mode_spec.name} brand repository ready in {repo_elapsed:.2f}s "
-        f"brands={len(repo.brand_names)} cache_hit={int(repo_cache_hit)}"
-    )
-
-    dummy_args = argparse.Namespace(
-        alpha=0.5,
-        threshold=0.58,
+    repository_elapsed = time.perf_counter() - repository_started
+    diagnostic_args = argparse.Namespace(
+        threshold=FIXED_DECISION_THRESHOLD,
         max_logo_per_brand=int(max_logo_per_brand),
         image_batch_size=int(image_batch_size),
         text_batch_size=int(text_batch_size),
         device=str(encoder.device),
         progress=bool(progress),
-        grid_search=True,
-        grid_objective=str(grid_objective),
     )
     print_runtime_format_info(
         det_csv=det_csv,
         csv_info=inspect_detection_csv_format(det_csv),
         detections=detections,
         repo=repo,
-        args=dummy_args,
-        alpha_grid=alpha_grid,
-        threshold_grid=threshold_grid,
+        args=diagnostic_args,
+        image_weight=FIXED_IMAGE_WEIGHT,
     )
 
     feature_cache_path = _make_mode_feature_cache_path(
@@ -653,122 +645,68 @@ def _evaluate_single_mode(
         repo_cache_key=repo_cache_key,
         mode_spec=mode_spec,
     )
-
     feature_cache_hit = 0
     pre: Optional[PrecomputedData] = None
-    t_feature = time.perf_counter()
+    feature_started = time.perf_counter()
     if (not bool(rebuild_feature_cache)) and os.path.isfile(feature_cache_path):
         try:
             pre = load_precomputed_cache(feature_cache_path)
             feature_cache_hit = 1
             print(f"[cache] mode={mode_spec.name} stage2_feature hit: {feature_cache_path}")
-        except Exception as e:
-            print(f"[cache] mode={mode_spec.name} stage2_feature load failed, recomputing: {type(e).__name__}: {e}")
+        except Exception as exc:
+            print(f"[cache] mode={mode_spec.name} stage2_feature load failed, recomputing: {type(exc).__name__}: {exc}")
 
-    sim_from_query_time = 0.0
+    similarity_elapsed = 0.0
     if pre is None:
-        ts = time.perf_counter()
+        similarity_started = time.perf_counter()
         pre = compute_similarity_from_query_features_mode(
             query_data=query_data,
             repo=repo,
             mode_spec=mode_spec,
             progress=bool(progress),
         )
-        sim_from_query_time = time.perf_counter() - ts
+        similarity_elapsed = time.perf_counter() - similarity_started
         save_precomputed_cache(feature_cache_path, pre)
         print(f"[cache] mode={mode_spec.name} stage2_feature saved: {feature_cache_path}")
 
-    feature_time = time.perf_counter() - t_feature
-    print(
-        f"[stage2] mode={mode_spec.name} feature_precompute elapsed_sec={feature_time:.2f} "
-        f"has_logo={int(pre.has_logo.sum())}/{len(detections)} "
-        f"feature_cache_hit={int(feature_cache_hit)} query_cache_hit={int(query_cache_hit)}"
+    feature_elapsed = time.perf_counter() - feature_started
+    fixed_fusion = compute_fixed_fusion_output(
+        pre=pre,
+        repo=repo,
+        screenshot_urls=[str(detection.url or "") for detection in detections],
     )
-
-    best_obj = -1.0
-    best_alpha = float(alpha_grid[0])
-    best_threshold = float(threshold_grid[0])
-    best_metrics = Metrics()
-    best_alpha_out = None
-    best_pred_vec = None
-    search_records: List[Dict[str, Any]] = []
-    screenshot_urls = [str(d.url or "") for d in detections]
-
-    t_search = time.perf_counter()
-    alpha_iter = iter_with_progress(alpha_grid, description=f"{mode_spec.name}_grid_alpha", enabled=bool(progress))
-    for alpha in alpha_iter:
-        alpha_out = compute_alpha_output(
-            alpha=float(alpha),
-            pre=pre,
-            repo=repo,
-            screenshot_urls=screenshot_urls,
-        )
-        for threshold in threshold_grid:
-            metrics, pred_vec = _evaluate_threshold(
-                pre=pre,
-                alpha_out=alpha_out,
-                threshold=float(threshold),
-            )
-            obj = _objective_value(metrics, objective=str(grid_objective))
-            search_records.append(
-                {
-                    "alpha": float(alpha),
-                    "threshold": float(threshold),
-                    "objective": str(grid_objective),
-                    "objective_value": float(obj),
-                    "metrics": metrics.to_dict(),
-                }
-            )
-            if obj > best_obj:
-                best_obj = float(obj)
-                best_alpha = float(alpha)
-                best_threshold = float(threshold)
-                best_metrics = metrics
-                best_alpha_out = alpha_out
-                best_pred_vec = pred_vec
-    search_time = time.perf_counter() - t_search
-
-    if best_alpha_out is None or best_pred_vec is None:
-        raise RuntimeError(f"mode={mode_spec.name} search produced no valid result")
+    decision_started = time.perf_counter()
+    metrics, pred_vec = _evaluate_threshold(
+        pre=pre,
+        fusion_output=fixed_fusion,
+        threshold=FIXED_DECISION_THRESHOLD,
+    )
+    decision_elapsed = time.perf_counter() - decision_started
 
     rows = _build_prediction_rows(
         detections=detections,
         pre=pre,
-        alpha_out=best_alpha_out,
-        threshold=float(best_threshold),
-        pred_vec=best_pred_vec,
+        fusion_output=fixed_fusion,
+        threshold=FIXED_DECISION_THRESHOLD,
+        pred_vec=pred_vec,
     )
-
     pred_csv_path = os.path.join(mode_out_dir, "predictions.csv")
     _write_csv_rows(pred_csv_path, rows)
-
-    brand_level_rows, brand_level_overview = _build_brand_level_reports(
-        rows=rows,
-        threshold=float(best_threshold),
-    )
+    brand_level_rows, brand_level_overview = _build_brand_level_reports(rows=rows, threshold=FIXED_DECISION_THRESHOLD)
     brand_level_csv_path = os.path.join(mode_out_dir, "brand_level_diagnosis.csv")
     brand_level_json_path = os.path.join(mode_out_dir, "brand_level_diagnosis.json")
     if brand_level_rows:
         _write_csv_rows(brand_level_csv_path, brand_level_rows)
     else:
-        with open(brand_level_csv_path, "w", encoding="utf-8", newline="") as f:
-            f.write("")
-    _save_json(
-        brand_level_json_path,
-        {
-            "overview": brand_level_overview,
-            "brands": brand_level_rows,
-        },
-    )
+        with open(brand_level_csv_path, "w", encoding="utf-8", newline="") as handle:
+            handle.write("")
+    _save_json(brand_level_json_path, {"overview": brand_level_overview, "brands": brand_level_rows})
 
-    metrics_dict = best_metrics.to_dict()
-    curve_score = best_alpha_out.best_score.astype(np.float32).copy()
+    metrics_dict = metrics.to_dict()
+    curve_score = fixed_fusion.best_score.astype(np.float32).copy()
     curve_score[pre.has_logo.astype(bool) == 0] = 0.0
-    curve_score[best_alpha_out.url_would_be_phish.astype(bool) == 0] = 0.0
-    curve_metrics = _compute_curve_metrics(
-        y_true=np.asarray(pre.y_true, dtype=np.uint8),
-        curve_score=curve_score,
-    )
+    curve_score[fixed_fusion.url_would_be_phish.astype(bool) == 0] = 0.0
+    curve_metrics = _compute_curve_metrics(y_true=np.asarray(pre.y_true, dtype=np.uint8), curve_score=curve_score)
 
     summary = {
         "prompt_mode": {
@@ -776,59 +714,22 @@ def _evaluate_single_mode(
             "display_name": mode_spec.display_name,
             "text_source": mode_spec.text_source,
             "text_score_mode": mode_spec.text_score_mode,
-            "simple13_definition": (
-                "max similarity across 13 prompts"
-                if mode_spec.name == "simple13"
-                else "mean prompt prototype" if mode_spec.name == "simple13_mean" else "mean DBI-5 prototype"
-            ),
         },
         "base_summary_json": os.path.abspath(summary_json),
-        "config": {
-            "det_csv": os.path.abspath(det_csv),
-            "brand_ckpt": os.path.abspath(brand_ckpt),
-            "logo_library_dir": os.path.abspath(logo_library_dir),
-            "dbi5_dir": os.path.abspath(dbi5_dir),
-            "normal_urls_csv": os.path.abspath(normal_urls_csv),
-            "benign_root": os.path.abspath(benign_root),
-            "phish_root": os.path.abspath(phish_root),
-            "max_samples": int(max_samples),
-            "max_logo_per_brand": int(max_logo_per_brand),
-            "image_batch_size": int(image_batch_size),
-            "text_batch_size": int(text_batch_size),
-            "device": str(encoder.device),
-        },
-        "selection": {
-            "grid_search": True,
-            "grid_objective": str(grid_objective),
-            "best_alpha": float(best_alpha),
-            "best_threshold": float(best_threshold),
-            "best_objective_value": float(best_obj),
-            "n_alpha": int(len(alpha_grid)),
-            "n_threshold": int(len(threshold_grid)),
-            "n_combinations": int(len(alpha_grid) * len(threshold_grid)),
+        "decision": {
+            "fusion_strategy": "fixed_linear",
+            "image_weight": float(FIXED_IMAGE_WEIGHT),
+            "text_weight": float(FIXED_TEXT_WEIGHT),
+            "threshold": float(FIXED_DECISION_THRESHOLD),
         },
         "runtime": {
-            "repo_build_sec": float(repo_elapsed),
-            "feature_precompute_sec": float(feature_time),
-            "similarity_from_query_sec": float(sim_from_query_time),
-            "grid_eval_sec": float(search_time),
+            "repo_build_sec": float(repository_elapsed),
+            "feature_precompute_sec": float(feature_elapsed),
+            "similarity_from_query_sec": float(similarity_elapsed),
+            "fixed_decision_sec": float(decision_elapsed),
             "repo_cache_hit": int(repo_cache_hit),
             "query_cache_hit": int(query_cache_hit),
             "feature_cache_hit": int(feature_cache_hit),
-        },
-        "cache": {
-            "cache_dir": os.path.abspath(cache_dir),
-            "repo_cache_path": os.path.abspath(repo_cache_path),
-            "query_cache_path": os.path.abspath(query_cache_path),
-            "feature_cache_path": os.path.abspath(feature_cache_path),
-            "repo_cache_hit": int(repo_cache_hit),
-            "query_cache_hit": int(query_cache_hit),
-            "feature_cache_hit": int(feature_cache_hit),
-        },
-        "counts": {
-            "n_samples": int(len(rows)),
-            "n_with_logo": int(pre.has_logo.sum()),
-            "n_pred_phish": int(np.sum(best_pred_vec.astype(np.uint8))),
         },
         "metrics": metrics_dict,
         "curve_metrics": curve_metrics,
@@ -841,13 +742,10 @@ def _evaluate_single_mode(
         },
     }
 
-    grid_path = os.path.join(mode_out_dir, "grid_results.json")
     metrics_path = os.path.join(mode_out_dir, "metrics.json")
     summary_path = os.path.join(mode_out_dir, "summary.json")
     repo_meta_path = os.path.join(mode_out_dir, "brand_repository_meta.json")
     run_args_path = os.path.join(mode_out_dir, "run_args.json")
-
-    _save_json(grid_path, {"mode": mode_spec.name, "grid_results": search_records})
     _save_json(metrics_path, metrics_dict)
     _save_json(summary_path, summary)
     _save_json(repo_meta_path, _build_repo_brand_meta(repo))
@@ -855,30 +753,19 @@ def _evaluate_single_mode(
         run_args_path,
         {
             "mode": mode_spec.name,
-            "display_name": mode_spec.display_name,
-            "text_source": mode_spec.text_source,
-            "text_score_mode": mode_spec.text_score_mode,
-            "alpha_grid": [float(x) for x in alpha_grid],
-            "threshold_grid": [float(x) for x in threshold_grid],
-            "grid_objective": str(grid_objective),
+            "fixed_image_weight": float(FIXED_IMAGE_WEIGHT),
+            "fixed_text_weight": float(FIXED_TEXT_WEIGHT),
+            "fixed_threshold": float(FIXED_DECISION_THRESHOLD),
             "rebuild_repo_cache": bool(rebuild_repo_cache),
             "rebuild_feature_cache": bool(rebuild_feature_cache),
         },
     )
 
     print(
-        f"[stage2] mode={mode_spec.name} best alpha={best_alpha:.4f} "
-        f"threshold={best_threshold:.4f} {grid_objective}={best_obj:.4f}"
+        f"[stage2] mode={mode_spec.name} fixed fusion: "
+        f"image={FIXED_IMAGE_WEIGHT:.2f} text={1.0 - FIXED_IMAGE_WEIGHT:.2f} "
+        f"threshold={FIXED_DECISION_THRESHOLD:.2f}"
     )
-    print(
-        f"[stage2] mode={mode_spec.name} metrics "
-        f"acc={metrics_dict['accuracy']:.4f} "
-        f"p={metrics_dict['precision']:.4f} "
-        f"r={metrics_dict['recall']:.4f} "
-        f"f1={metrics_dict['f1']:.4f} "
-        f"brand_acc_on_phish={metrics_dict['brand_acc_on_phish']:.4f}"
-    )
-
     return {
         "mode": mode_spec.name,
         "display_name": mode_spec.display_name,
@@ -886,15 +773,14 @@ def _evaluate_single_mode(
         "metrics": metrics_dict,
         "curve_metrics": curve_metrics,
         "brand_level_overview": brand_level_overview,
-        "best_alpha": float(best_alpha),
-        "best_threshold": float(best_threshold),
+        "image_weight": float(FIXED_IMAGE_WEIGHT),
+        "threshold": float(FIXED_DECISION_THRESHOLD),
         "repo_cache_hit": int(repo_cache_hit),
         "query_cache_hit": int(query_cache_hit),
         "feature_cache_hit": int(feature_cache_hit),
         "repo_cache_path": os.path.abspath(repo_cache_path),
         "feature_cache_path": os.path.abspath(feature_cache_path),
     }
-
 
 def parse_args() -> argparse.Namespace:
     defaults = resolve_default_paths(__file__)
@@ -919,14 +805,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--query-cache-path", type=str, default="")
     parser.add_argument("--cache-dir", type=str, default=default_cache_dir)
     parser.add_argument("--modes", type=str, default="dbi5,simple13,simple13_mean")
-    parser.add_argument("--alpha-grid", type=str, default="", help="e.g. '0:1:0.1' or '0.2,0.4,0.6'")
-    parser.add_argument("--threshold-grid", type=str, default="", help="e.g. '0.4:0.9:0.01' or '0.55,0.58,0.60'")
-    parser.add_argument(
-        "--grid-objective",
-        type=str,
-        default="f1",
-        choices=["f1", "accuracy", "precision", "recall", "brand_acc_on_phish"],
-    )
     parser.add_argument("--max-samples", type=int, default=-10**9)
     parser.add_argument("--max-logo-per-brand", type=int, default=-10**9)
     parser.add_argument("--image-batch-size", type=int, default=-10**9)
@@ -985,6 +863,7 @@ def main() -> None:
             brand_ckpt=brand_ckpt,
             det_csv=det_csv,
             max_samples=int(max_samples),
+            topk=int(base_cfg.get('topk', 3)),
             benign_root=benign_root,
             phish_root=phish_root,
         )
@@ -1028,14 +907,6 @@ def main() -> None:
             f"vs detections_n={int(len(detections))}. If you changed max_samples or det_csv, rebuild query cache."
         )
 
-    alpha_grid = _parse_grid_values(
-        str(args.alpha_grid),
-        fallback=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-    )
-    threshold_grid = _parse_grid_values(
-        str(args.threshold_grid),
-        fallback=[round(0.40 + 0.01 * i, 2) for i in range(51)],
-    )
 
     results: List[Dict[str, Any]] = []
     for mode_spec in mode_specs:
@@ -1059,9 +930,6 @@ def main() -> None:
             max_logo_per_brand=max_logo_per_brand,
             image_batch_size=image_batch_size,
             text_batch_size=text_batch_size,
-            alpha_grid=alpha_grid,
-            threshold_grid=threshold_grid,
-            grid_objective=str(args.grid_objective),
             rebuild_repo_cache=bool(args.rebuild_repo_cache),
             rebuild_feature_cache=bool(args.rebuild_feature_cache),
             progress=bool(args.progress),
@@ -1132,8 +1000,8 @@ def main() -> None:
             "text_batch_size": int(text_batch_size),
             "device": str(device),
             "resolved_modes": [m.name for m in mode_specs],
-            "alpha_grid": [float(x) for x in alpha_grid],
-            "threshold_grid": [float(x) for x in threshold_grid],
+            "fixed_image_weight": float(FIXED_IMAGE_WEIGHT),
+            "fixed_threshold": float(FIXED_DECISION_THRESHOLD),
         },
     )
 

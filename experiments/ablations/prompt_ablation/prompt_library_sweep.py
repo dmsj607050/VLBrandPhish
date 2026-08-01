@@ -101,8 +101,6 @@ def _read_single_compare_csv(path: str) -> Dict[str, Any]:
     row = dict(rows[0])
 
     float_fields = [
-        "best_alpha",
-        "best_threshold",
         "accuracy",
         "precision",
         "recall",
@@ -155,18 +153,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--compare-module",
         type=str,
-        default="vlbrandphish.experiments.ablation.prompt_modes",
+        default="experiments.ablations.prompt_ablation.prompt_modes",
         help="Installed module used to evaluate each prompt family.",
     )
     parser.add_argument("--python-exe", type=str, default=sys.executable)
-    parser.add_argument("--alpha-grid", type=str, default="")
-    parser.add_argument("--threshold-grid", type=str, default="")
-    parser.add_argument(
-        "--grid-objective",
-        type=str,
-        default="f1",
-        choices=["f1", "accuracy", "precision", "recall", "brand_acc_on_phish"],
-    )
     parser.add_argument("--device", type=str, default="")
     parser.add_argument("--no-progress", action="store_true")
     parser.add_argument("--rebuild-repo-cache", action="store_true")
@@ -227,14 +217,8 @@ def main() -> None:
             "--query-cache-path",
             query_cache_path,
             "--out-dir",
-            fam_out,
-            "--grid-objective",
-            str(args.grid_objective),
+            fam_out
         ]
-        if str(args.alpha_grid).strip():
-            cmd += ["--alpha-grid", str(args.alpha_grid)]
-        if str(args.threshold_grid).strip():
-            cmd += ["--threshold-grid", str(args.threshold_grid)]
         if str(args.device).strip():
             cmd += ["--device", str(args.device)]
         if bool(args.no_progress):
@@ -300,7 +284,6 @@ def main() -> None:
             "n_families_total": int(len(families)),
             "n_success": int(len(rows_sorted)),
             "n_failed": int(len(failed)),
-            "grid_objective": str(args.grid_objective),
             "best_family": best,
             "sweep_csv": sweep_csv,
             "sweep_md": sweep_md,

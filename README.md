@@ -5,7 +5,7 @@ Official code for **VLBrandPhish**, a visual-language, brand-aware phishing-dete
 ## What is included
 
 - A detection-and-verification workflow: logo detection, visual-language brand identification, and URL-domain verification.
-- SigLIP-based brand-recognizer training code with image-to-image and image-to-text evidence fusion.
+- SigLIP-based brand recognition with a fixed image/text evidence fusion rule (image 0.8, text 0.2).
 - Logo-detector training wrappers built on MMDetection/DINO.
 - Root command-line entry points, versioned training configurations, lightweight contract tests, and artifact checks.
 
@@ -21,7 +21,7 @@ VLBrandPhish-main/
 |-- scripts/                         # Manifest, verification, and metadata utilities
 |-- inference/                       # Per-method inference packages
 |   `-- vlbrandphish/                # VLBrandPhish inference workflow
-|       |-- components/brand/        # Shared encoder, fusion, brand repository, naming
+|       |-- components/brand/        # Inference encoder, brand repository, naming
 |       |-- data/                    # Detection CSV contract, sample loading, image resolution
 |       |-- detection/               # Stage 1 command and MMDetection adapter
 |       |-- recognition/             # Stage 2 resource loading and visual-language features

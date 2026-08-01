@@ -47,7 +47,6 @@ class PrecomputedData:
     """Brand similarities and labels after crop features have been scored."""
     sim_img: np.ndarray
     sim_txt: np.ndarray
-    router_alpha: np.ndarray
     has_logo: np.ndarray
     y_true: np.ndarray
     gt_brand_keys: List[str]
@@ -60,7 +59,6 @@ class PrecomputedData:
 class QueryFeatureData:
     """Encoded detector crops and path-resolution diagnostics before brand scoring."""
     query_feat: np.ndarray
-    route_weights: np.ndarray
     query_mask: np.ndarray
     y_true: np.ndarray
     gt_brand_keys: List[str]
@@ -70,13 +68,9 @@ class QueryFeatureData:
 
 
 @dataclass
-class AlphaOutput:
-    """Fused brand predictions plus the domain-gate evidence for every sample."""
-    fusion_method: str
-    alpha: float
-    gate_k: float
-    gate_b: float
-    alpha_vec: np.ndarray
+class FixedFusionOutput:
+    """Fixed image/text fusion predictions plus domain-gate evidence per sample."""
+    image_weight: float
     pred_brand_idx: np.ndarray
     pred_brand_names: List[str]
     best_score: np.ndarray

@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 from inference.vlbrandphish.runtime.paths import default_run_dir, resolve_default_paths
 from inference.vlbrandphish.components.brand.naming import normalize_brand_key, parse_semicolon_list
 from inference.vlbrandphish.decision.domain import registered_domain
+from inference.vlbrandphish.recognition.features import FIXED_DECISION_THRESHOLD
 
 
 def _to_int(v: object, default: int = 0) -> int:
@@ -143,19 +144,9 @@ def _discover_latest_stage2_output(base_dir: str) -> Tuple[str, str]:
     return pred_path, summary_path
 
 
-def _choose_threshold(summary_json: str, threshold_arg: float) -> float:
-    if float(threshold_arg) >= 0.0:
-        return float(threshold_arg)
-
-    if os.path.isfile(summary_json):
-        with open(summary_json, "r", encoding="utf-8") as f:
-            payload = json.load(f)
-        try:
-            return float(payload["selection"]["best_threshold"])
-        except Exception:
-            pass
-    raise ValueError("Threshold not provided and cannot be inferred from summary.json")
-
+def _fixed_threshold() -> float:
+    """Return the published fixed decision threshold for diagnostic breakdowns."""
+    return float(FIXED_DECISION_THRESHOLD)
 
 def _fmt_pct(v: float) -> str:
     return f"{100.0 * float(v):.2f}%"
@@ -354,7 +345,6 @@ def main() -> None:
     parser.add_argument("--summary-json", type=str, default="")
     parser.add_argument("--normal-urls-csv", type=str, default=defaults.normal_urls_csv)
     parser.add_argument("--brands-overlap-csv", type=str, default=os.path.join(defaults.testb_root, "brands_overlap.csv"))
-    parser.add_argument("--threshold", type=float, default=-1.0, help="Use >=0 to override summary best_threshold.")
     parser.add_argument("--out-dir", type=str, default="")
     parser.add_argument("--out-base-dir", type=str, default=output_base)
     parser.add_argument("--top-k", type=int, default=100)
@@ -371,7 +361,7 @@ def main() -> None:
     if not os.path.isfile(pred_csv):
         raise FileNotFoundError(f"predictions.csv not found: {pred_csv}")
 
-    threshold = _choose_threshold(summary_json, float(args.threshold))
+    threshold = _fixed_threshold()
 
     out_dir = str(args.out_dir).strip()
     if not out_dir:

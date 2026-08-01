@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from inference.vlbrandphish.components.brand.fusion import LogoTypeRouter, ResidualAdapter
+from .model_blocks import LogoTypeRouter, ResidualAdapter
 
 
 @dataclass

@@ -12,7 +12,6 @@ import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
 
-from .fusion import LogoTypeRouter, ResidualAdapter
 
 
 def _is_valid_hf_model_dir(path: str) -> bool:
@@ -71,11 +70,6 @@ class CLIPEncoder:
         self.processor = None
         self.transform = None
         self._clip = None
-        self.adapter = None
-        self.router = None
-        self.has_router = False
-        self.router_stats_dim = 2
-        self.router_out_dim = 3
 
         if not os.path.isfile(ckpt_path):
             raise FileNotFoundError(f"CLIP checkpoint not found: {ckpt_path}")
@@ -162,44 +156,6 @@ class CLIPEncoder:
         self.processor = processor
         self.model = model
 
-        embed_dim = int(getattr(model.config, "projection_dim", 768))
-        cfg = ckpt.get("cfg") or {}
-        if "adapter_state" in ckpt:
-            adapter = ResidualAdapter(
-                embed_dim=embed_dim,
-                hidden_dim=int(cfg.get("adapter_hidden_dim", 256)),
-                dropout=float(cfg.get("adapter_dropout", 0.1)),
-            ).to(self.device)
-            adapter.load_state_dict(ckpt["adapter_state"], strict=True)
-            self.adapter = adapter.float().eval()
-        if "router_state" in ckpt:
-            router_state = ckpt["router_state"]
-            # Infer router dimensions from the checkpoint so 2- and 3-branch variants remain compatible.
-            stats_dim = 2
-            out_dim = 3
-            try:
-                first_weight = router_state.get("net.0.weight", None)
-                last_weight = router_state.get("net.4.weight", None)
-                if first_weight is not None and int(first_weight.shape[1]) >= int(embed_dim):
-                    stats_dim = int(first_weight.shape[1]) - int(embed_dim)
-                if last_weight is not None and int(last_weight.shape[0]) > 0:
-                    out_dim = int(last_weight.shape[0])
-            except Exception:
-                stats_dim = 2
-                out_dim = 3
-            router = LogoTypeRouter(
-                embed_dim=embed_dim,
-                hidden_dim=int(cfg.get("router_hidden_dim", 256)),
-                dropout=float(cfg.get("router_dropout", 0.1)),
-                stats_dim=int(stats_dim),
-                out_dim=int(out_dim),
-            ).to(self.device)
-            router.load_state_dict(router_state, strict=True)
-            self.router = router.float().eval()
-            self.has_router = True
-            self.router_stats_dim = int(stats_dim)
-            self.router_out_dim = int(out_dim)
-
         with torch.no_grad():
             dummy = torch.zeros((1, 3, 224, 224), device=self.device, dtype=torch.float32)
             self.embed_dim = int(self.model.get_image_features(pixel_values=dummy).shape[-1])
@@ -213,7 +169,7 @@ class CLIPEncoder:
         for start in range(0, len(images), int(batch_size)):
             batch_imgs = images[start : start + int(batch_size)]
             if self.backend == "siglip":
-                feat = self._encode_siglip_images(batch_imgs, apply_adapter=False)
+                feat = self._encode_siglip_images(batch_imgs)
             else:
                 assert self.transform is not None and self.model is not None
                 x = torch.stack([self.transform(im.convert("RGB")) for im in batch_imgs], dim=0).to(self.device)
@@ -223,33 +179,15 @@ class CLIPEncoder:
             out.append(feat)
         return torch.cat(out, dim=0)
 
-    def _encode_siglip_images(self, images: Sequence[Image.Image], *, apply_adapter: bool) -> torch.Tensor:
+    def _encode_siglip_images(self, images: Sequence[Image.Image]) -> torch.Tensor:
         assert self.processor is not None and self.model is not None
         inputs = self.processor(images=[im.convert("RGB") for im in images], return_tensors="pt")
         x = inputs["pixel_values"].to(self.device)
         with torch.no_grad():
             feat = self.model.get_image_features(pixel_values=x).float()
             feat = feat / (feat.norm(dim=-1, keepdim=True) + 1e-6)
-            if apply_adapter and self.adapter is not None:
-                feat = F.normalize(feat + self.adapter(feat), dim=-1)
         return feat
 
-    def encode_query_images(self, images: Sequence[Image.Image], batch_size: int = 64) -> torch.Tensor:
-        """Encode query-side logo crops, applying the residual adapter when available.
-
-        Differs from :meth:`encode_images` in that the adapter (if loaded) is applied
-        to query crops so the router sees adapted features consistent with training.
-        """
-        if not images:
-            return torch.empty((0, self.embed_dim), dtype=torch.float32, device=self.device)
-        if self.backend != "siglip":
-            return self.encode_images(images, batch_size=batch_size)
-
-        out: List[torch.Tensor] = []
-        for start in range(0, len(images), int(batch_size)):
-            batch_imgs = images[start : start + int(batch_size)]
-            out.append(self._encode_siglip_images(batch_imgs, apply_adapter=True))
-        return torch.cat(out, dim=0)
 
     def encode_texts(self, texts: Sequence[str], batch_size: int = 256) -> torch.Tensor:
         """Encode brand prompt texts into normalized embedding vectors."""
@@ -274,30 +212,3 @@ class CLIPEncoder:
                     feat = feat / (feat.norm(dim=-1, keepdim=True) + 1e-6)
             out.append(feat)
         return torch.cat(out, dim=0)
-
-    def route_weights_from_query_features(self, query_features: torch.Tensor) -> torch.Tensor:
-        """Produce per-crop branch weights (image/text/ocr) from query features.
-
-        Returns a ``[N, 3]`` tensor. When no router is available, fall back to a
-        uniform ``1/3`` distribution. Legacy 2-branch routers are padded into the
-        3-column shape expected by downstream consumers.
-        """
-        n = int(query_features.shape[0]) if query_features.ndim >= 1 else 0
-        if n <= 0:
-            return torch.empty((0, 3), dtype=torch.float32, device=self.device)
-        if self.backend != "siglip" or self.router is None:
-            # A model without a trained router uses uniform image/text/OCR branch weights.
-            return torch.full((n, 3), 1.0 / 3.0, dtype=torch.float32, device=self.device)
-        with torch.no_grad():
-            q = query_features.to(self.device).float()
-            if int(getattr(self, "router_out_dim", 3)) == 2:
-                # Pad legacy two-branch router outputs to the common three-branch interface.
-                stats_dim = int(getattr(self, "router_stats_dim", 6))
-                branch_stats = torch.zeros((n, stats_dim), dtype=torch.float32, device=self.device)
-                weights2 = self.router(q, branch_stats=branch_stats)
-                weights3 = torch.zeros((n, 3), dtype=torch.float32, device=self.device)
-                weights3[:, 0:2] = weights2
-                return weights3
-            # Inference has no OCR branch yet; explicitly mark it unavailable for the 3-branch router.
-            ocr_available = torch.zeros((n,), dtype=torch.bool, device=self.device)
-            return self.router(q, ocr_available=ocr_available)

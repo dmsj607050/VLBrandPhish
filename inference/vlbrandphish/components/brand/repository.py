@@ -383,28 +383,24 @@ def build_brand_repository(
 def score_query_features(
     query_feats: torch.Tensor,  # [Q, D]
     repo: BrandRepository,
-    alpha: float,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Score query crops against the repository, returning fused/image/text similarities.
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Return image and text similarities for every query crop and brand.
 
-    Returns ``(fused, sim_img, sim_txt)`` each of shape ``[Q, B]`` where B is the
-    number of brands. ``sim_img`` takes the max over per-brand logo slots; ``sim_txt``
-    uses the mean text prototype rather than per-line max to match training.
+    The fixed 0.8/0.2 fusion is intentionally applied later in
+    ``recognition.features`` after scores have been aggregated per screenshot.
     """
     if query_feats.ndim != 2:
         raise ValueError(f"query_feats must be 2D [Q,D], got shape={tuple(query_feats.shape)}")
     if int(query_feats.shape[0]) <= 0:
         b = int(len(repo.brand_names))
         empty = torch.zeros((0, b), dtype=torch.float32, device=query_feats.device)
-        return empty, empty, empty
+        return empty, empty
 
-    # Compare every query crop against every logo slot, then keep each brand's strongest logo match.
+    # Compare every crop to all logo slots, retaining each brand's best logo match.
     sim_img_full = torch.einsum("qd,bkd->qbk", query_feats, repo.logo_emb)
     sim_img_full = sim_img_full.masked_fill(~repo.logo_mask.unsqueeze(0), -1e9)
     sim_img = sim_img_full.max(dim=-1).values
 
-    # Compare each query crop against the mean text prototype of every brand.
+    # Compare every crop to the mean text prototype of each brand.
     sim_txt = torch.einsum("qd,bd->qb", query_feats, repo.text_proto)
-
-    fused = float(alpha) * sim_img + (1.0 - float(alpha)) * sim_txt
-    return fused, sim_img, sim_txt
+    return sim_img, sim_txt

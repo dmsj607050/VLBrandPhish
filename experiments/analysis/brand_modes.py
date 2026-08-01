@@ -9,6 +9,7 @@ import numpy as np
 
 from inference.vlbrandphish.runtime.paths import resolve_default_paths
 from inference.vlbrandphish.components.brand.naming import normalize_brand_key
+from inference.vlbrandphish.recognition.features import FIXED_IMAGE_WEIGHT, FIXED_TEXT_WEIGHT
 
 
 def _discover_latest_stage2_summary(outputs_dir: str) -> str:
@@ -111,7 +112,6 @@ def main() -> None:
     parser.add_argument("--summary-json", type=str, default="")
     parser.add_argument("--outputs-dir", type=str, default=default_outputs_dir)
     parser.add_argument("--brands-overlap-csv", type=str, default=default_overlap_csv)
-    parser.add_argument("--alpha", type=float, default=-1.0, help="If <0, use best_alpha from summary.")
     args = parser.parse_args()
 
     summary_json = str(args.summary_json or "").strip()
@@ -158,12 +158,7 @@ def main() -> None:
         raise RuntimeError(
             f"brand dim mismatch: feature B={b} but repo_brand_keys={len(repo_brand_keys)} (run dir: {run_dir})"
         )
-
-    alpha = float(args.alpha)
-    if alpha < 0:
-        alpha = float(summary.get("selection", {}).get("best_alpha", 0.5))
-
-    fused = float(alpha) * sim_img + (1.0 - float(alpha)) * sim_txt
+    fused = FIXED_IMAGE_WEIGHT * sim_img + FIXED_TEXT_WEIGHT * sim_txt
 
     split_map = _load_split_map(os.path.abspath(args.brands_overlap_csv))
     old_key_set = {k for k, v in split_map.items() if str(v) == "old48"}
@@ -224,7 +219,7 @@ def main() -> None:
     print("[brand_mode] ===== Independent Mode Evaluation =====")
     print(f"[brand_mode] summary_json={summary_json}")
     print(f"[brand_mode] feature_cache={feature_cache_path}")
-    print(f"[brand_mode] alpha={alpha:.4f}")
+    print(f"[brand_mode] fixed_image_weight={FIXED_IMAGE_WEIGHT:.4f}")
     print(
         "[brand_mode] old48: "
         f"correct={m_old['correct']}/{m_old['total_phish']} "
@@ -248,7 +243,7 @@ def main() -> None:
     out_payload = {
         "summary_json": summary_json,
         "feature_cache_path": feature_cache_path,
-        "alpha": float(alpha),
+        "decision": {"fusion_strategy": "fixed_linear", "image_weight": float(FIXED_IMAGE_WEIGHT), "text_weight": float(FIXED_TEXT_WEIGHT)},
         "results": {"old48": m_old, "new104": m_new, "all152": m_all},
     }
     out_path = os.path.join(os.path.dirname(summary_json), "brand_mode_eval.json")

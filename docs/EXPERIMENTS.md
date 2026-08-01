@@ -6,7 +6,7 @@ below is the source of truth for the public repository.
 
 | Area | Status | What it can do today |
 | --- | --- | --- |
-| `experiments/analysis/` | Implemented with cached Stage-2 artifacts | Recompute protocol, prompt-mode, and diagnostic summaries from an existing inference cache and split files. |
+| `experiments/analysis/` | Implemented with cached Stage-2 artifacts | Recompute fixed-fusion brand-mode and diagnostic summaries from an existing inference cache and split files. |
 | `experiments/ablations/prompt_ablation/` | Implemented with required model/data artifacts | Evaluate prompt modes or prompt-library sweeps after the detector CSV, checkpoint, logo library, and query cache are supplied. |
 | `experiments/preparation/` | Implemented utilities | Build prompt libraries and prepare/edit VOC annotations from explicit local inputs. |
 | `experiments/figures/` | Implemented with cached Stage-2 artifacts | Render case-study figures from a saved inference summary, caches, and images. |
@@ -21,8 +21,9 @@ of the following inputs:
    labels, and the train/validation/test split.
 2. The exact checkpoint, logo/reference library, and baseline release, each with a
    version and SHA-256 hash.
-3. A frozen configuration and a declared threshold-selection protocol that never tunes
-   on the reported test split.
+3. A frozen configuration with the published fixed decision rule: image weight 0.8,
+   text weight 0.2, and threshold 0.62. These values are never searched on the
+   reported test split.
 4. A deterministic output directory containing predictions, metrics, a confusion matrix,
    and the command/environment record.
 5. The expected output schema and a check that fails if any selected method did not
@@ -37,7 +38,6 @@ local artifacts documented in `docs/DATA_AND_MODELS.md`:
 python cli.py detect --help
 python cli.py infer --help
 python cli.py train-brand --help
-python -m experiments.analysis.cached_protocols --help
 python -m experiments.ablations.prompt_ablation.prompt_modes --help
 ```
 

@@ -40,7 +40,7 @@ class ArchitectureContractsTest(unittest.TestCase):
         expected = (
             "cli.py",
             "inference/vlbrandphish/components/brand/encoders.py",
-            "inference/vlbrandphish/components/brand/fusion.py",
+            "training/vlbrandphish/brand_recognition/common/model_blocks.py",
             "inference/vlbrandphish/data/detection_csv.py",
             "inference/vlbrandphish/data/testb_dataset.py",
             "inference/vlbrandphish/data/image_paths.py",

@@ -10,60 +10,12 @@ import numpy as np
 
 from ..components.brand.naming import normalize_brand_key
 from ..data.detection_csv import DetectionSample
-from ..runtime.types import AlphaOutput, Metrics, PrecomputedData
-
-def parse_grid_values(raw: str, fallback: List[float]) -> List[float]:
-    """Parse a comma list or inclusive start:end:step range into unique floats."""
-    txt = str(raw or "").strip()
-    if not txt:
-        return [float(x) for x in fallback]
-
-    vals: List[float] = []
-    if txt.count(":") == 2 and ("," not in txt and ";" not in txt):
-        s, e, step = txt.split(":")
-        start = float(s.strip())
-        end = float(e.strip())
-        inc = float(step.strip())
-        if inc <= 0:
-            raise ValueError(f"Grid step must be > 0, got: {txt}")
-        v = start
-        while v <= end + 1e-12:
-            vals.append(float(v))
-            v += inc
-    else:
-        for token in txt.replace(";", ",").split(","):
-            s = token.strip()
-            if s:
-                vals.append(float(s))
-
-    out: List[float] = []
-    seen = set()
-    for v in vals:
-        k = f"{float(v):.10f}"
-        if k in seen:
-            continue
-        seen.add(k)
-        out.append(float(v))
-    return out
-
-def objective_value(metrics: Metrics, objective: str) -> float:
-    """Select the requested metric used to rank threshold/fusion candidates."""
-    m = metrics.to_dict()
-    key = str(objective or "f1").strip().lower()
-    if key == "accuracy":
-        return float(m["accuracy"])
-    if key == "precision":
-        return float(m["precision"])
-    if key == "recall":
-        return float(m["recall"])
-    if key == "brand_acc_on_phish":
-        return float(m["brand_acc_on_phish"])
-    return float(m["f1"])
+from ..runtime.types import FixedFusionOutput, Metrics, PrecomputedData
 
 def evaluate_threshold(
     *,
     pre: PrecomputedData,
-    alpha_out: AlphaOutput,
+    fusion_output: FixedFusionOutput,
     threshold: float,
 ) -> Tuple[Metrics, np.ndarray]:
     """Apply the three-condition phishing decision and compute confusion-matrix metrics.
@@ -74,7 +26,7 @@ def evaluate_threshold(
     """
     has_logo = pre.has_logo.astype(bool)
     # A phishing decision requires a detected logo, sufficient evidence, and a domain mismatch.
-    pred = has_logo & (alpha_out.best_score >= float(threshold)) & (alpha_out.url_would_be_phish.astype(bool))
+    pred = has_logo & (fusion_output.best_score >= float(threshold)) & (fusion_output.url_would_be_phish.astype(bool))
     y = pre.y_true.astype(bool)
 
     tp = int(np.sum(pred & y))
@@ -83,7 +35,7 @@ def evaluate_threshold(
     fn = int(np.sum((~pred) & y))
 
     brand_total = int(np.sum(y & np.array([bool(x) for x in pre.gt_brand_keys], dtype=bool)))
-    brand_correct = int(np.sum(y & pred & (alpha_out.brand_match.astype(bool))))
+    brand_correct = int(np.sum(y & pred & (fusion_output.brand_match.astype(bool))))
 
     m = Metrics(
         tp=tp,
@@ -99,7 +51,7 @@ def build_prediction_rows(
     *,
     detections: List[DetectionSample],
     pre: PrecomputedData,
-    alpha_out: AlphaOutput,
+    fusion_output: FixedFusionOutput,
     threshold: float,
     pred_vec: np.ndarray,
 ) -> List[Dict[str, object]]:
@@ -109,13 +61,13 @@ def build_prediction_rows(
     for i in range(n):
         det = detections[i]
         has_logo = int(pre.has_logo[i]) == 1
-        pred_brand = str(alpha_out.pred_brand_names[i] if has_logo else "")
-        score = float(alpha_out.best_score[i] if has_logo else 0.0)
-        score_img = float(alpha_out.best_score_img[i] if has_logo else 0.0)
-        score_txt = float(alpha_out.best_score_txt[i] if has_logo else 0.0)
+        pred_brand = str(fusion_output.pred_brand_names[i] if has_logo else "")
+        score = float(fusion_output.best_score[i] if has_logo else 0.0)
+        score_img = float(fusion_output.best_score_img[i] if has_logo else 0.0)
+        score_txt = float(fusion_output.best_score_txt[i] if has_logo else 0.0)
         pred_is_phishing = int(pred_vec[i])
-        url_would_be_phish = int(alpha_out.url_would_be_phish[i] if has_logo else 0)
-        url_match = int(alpha_out.url_match[i] if has_logo else 0)
+        url_would_be_phish = int(fusion_output.url_would_be_phish[i] if has_logo else 0)
+        url_match = int(fusion_output.url_match[i] if has_logo else 0)
         screenshot_domain = str(pre.screenshot_domains[i] if has_logo else "")
 
         if not has_logo:
@@ -123,7 +75,7 @@ def build_prediction_rows(
         elif score < float(threshold):
             decision_reason = "score_below_threshold"
         else:
-            decision_reason = str(alpha_out.url_reason_above_thr[i] or "")
+            decision_reason = str(fusion_output.url_reason_above_thr[i] or "")
 
         gt_brand = str(det.gt_brand or "")
         brand_correct = 0
@@ -140,14 +92,12 @@ def build_prediction_rows(
             "has_logo": int(has_logo),
             "pred_is_phishing": int(pred_is_phishing),
             "pred_brand": pred_brand,
-            "pred_brand_idx": int(alpha_out.pred_brand_idx[i] if has_logo else -1),
+            "pred_brand_idx": int(fusion_output.pred_brand_idx[i] if has_logo else -1),
             "score": float(score),
             "score_img": float(score_img),
             "score_txt": float(score_txt),
-            "alpha_used": float(alpha_out.alpha_vec[i] if has_logo and i < len(alpha_out.alpha_vec) else 0.0),
-            "fusion_method": str(alpha_out.fusion_method),
-            "gate_k": float(alpha_out.gate_k),
-            "gate_b": float(alpha_out.gate_b),
+            "image_weight": float(fusion_output.image_weight),
+            "text_weight": float(1.0 - fusion_output.image_weight),
             "url_would_be_phish": int(url_would_be_phish),
             "url_match": int(url_match),
             "screenshot_domain": screenshot_domain,

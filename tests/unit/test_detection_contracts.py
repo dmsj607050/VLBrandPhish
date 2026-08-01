@@ -41,13 +41,6 @@ class PipelineContractsTest(unittest.TestCase):
                 self.assertEqual(batch_size, 1)
                 return torch.tensor([[0.6, 0.8]], dtype=torch.float32)
 
-            @staticmethod
-            def encode_query_images(images, batch_size: int):
-                return torch.tensor([[0.6, 0.8]], dtype=torch.float32)
-
-            @staticmethod
-            def route_weights_from_query_features(features):
-                return torch.tensor([[0.2, 0.3, 0.5]], dtype=torch.float32)
 
         with tempfile.TemporaryDirectory() as directory:
             image_path = Path(directory) / "sample.png"
@@ -73,7 +66,6 @@ class PipelineContractsTest(unittest.TestCase):
         self.assertEqual(query.query_mask.tolist(), [[1]])
         self.assertEqual(query.query_feat.shape, (1, 1, 2))
         self.assertAlmostEqual(float(query.query_feat[0, 0, 0]), 0.6)
-        self.assertAlmostEqual(float(query.route_weights[0, 0, 2]), 0.5)
     def test_decision_respects_threshold(self) -> None:
         result = decide_with_threshold_and_url(
             score=0.59,

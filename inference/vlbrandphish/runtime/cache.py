@@ -145,7 +145,7 @@ def build_feature_cache_key(
 ) -> str:
     """Build a cache key for screenshot features and their repository context."""
     h = hashlib.md5()
-    h.update(b"stage2_feature_cache_v2")
+    h.update(b"stage2_feature_cache_v3_fixed_linear")
     hash_file_signature(det_csv, h)
     h.update(str(os.path.abspath(benign_root)).encode("utf-8", errors="ignore"))
     h.update(str(os.path.abspath(phish_root)).encode("utf-8", errors="ignore"))
@@ -160,7 +160,7 @@ def build_query_cache_key(
 ) -> str:
     """Build a cache key for query crops before repository scoring."""
     h = hashlib.md5()
-    h.update(b"stage2_query_cache_v2")
+    h.update(b"stage2_query_cache_v3_fixed_linear")
     hash_file_signature(brand_ckpt, h)
     hash_file_signature(det_csv, h)
     h.update(str(os.path.abspath(benign_root)).encode("utf-8", errors="ignore"))
@@ -171,12 +171,11 @@ def build_query_cache_key(
 
 
 def save_query_cache(path: str, query_data: QueryFeatureData) -> None:
-    """Persist query crop features and route weights in a compact NPZ file."""
+    """Persist query crop features in a compact NPZ file."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     np.savez_compressed(
         os.path.abspath(path),
         query_feat=np.asarray(query_data.query_feat, dtype=np.float32),
-        route_weights=np.asarray(query_data.route_weights, dtype=np.float32),
         query_mask=np.asarray(query_data.query_mask, dtype=np.uint8),
         y_true=np.asarray(query_data.y_true, dtype=np.uint8),
         gt_brand_keys=np.asarray([str(value) for value in query_data.gt_brand_keys], dtype=object),
@@ -187,7 +186,7 @@ def save_query_cache(path: str, query_data: QueryFeatureData) -> None:
 
 
 def load_query_cache(path: str) -> QueryFeatureData:
-    """Load query crop features and route weights from an NPZ cache."""
+    """Load query crop features from an NPZ cache."""
     archive = np.load(os.path.abspath(path), allow_pickle=True)
     stats = json.loads(str(np.asarray(archive["resolve_stats_json"], dtype=object).reshape(-1)[0]))
     if not isinstance(stats, dict):
@@ -195,11 +194,6 @@ def load_query_cache(path: str) -> QueryFeatureData:
     query_features = np.asarray(archive["query_feat"], dtype=np.float32)
     return QueryFeatureData(
         query_feat=query_features,
-        route_weights=(
-            np.asarray(archive["route_weights"], dtype=np.float32)
-            if "route_weights" in archive.files
-            else np.zeros((int(query_features.shape[0]), int(query_features.shape[1]), 3), dtype=np.float32)
-        ),
         query_mask=np.asarray(archive["query_mask"], dtype=np.uint8),
         y_true=np.asarray(archive["y_true"], dtype=np.uint8),
         gt_brand_keys=[str(value) for value in np.asarray(archive["gt_brand_keys"], dtype=object).tolist()],
@@ -240,7 +234,6 @@ def slice_query_data_topk(query_data: QueryFeatureData, topk: int) -> QueryFeatu
     stats["topk_truncated_to"] = int(topk)
     return QueryFeatureData(
         query_feat=np.asarray(query_data.query_feat[:, : int(topk), :], dtype=np.float32),
-        route_weights=np.asarray(query_data.route_weights[:, : int(topk), :], dtype=np.float32),
         query_mask=np.asarray(query_data.query_mask[:, : int(topk)], dtype=np.uint8),
         y_true=np.asarray(query_data.y_true, dtype=np.uint8),
         gt_brand_keys=[str(value) for value in query_data.gt_brand_keys],
@@ -294,7 +287,6 @@ def save_precomputed_cache(path: str, precomputed: PrecomputedData) -> None:
         os.path.abspath(path),
         sim_img=precomputed.sim_img.astype(np.float32),
         sim_txt=precomputed.sim_txt.astype(np.float32),
-        router_alpha=precomputed.router_alpha.astype(np.float32),
         has_logo=precomputed.has_logo.astype(np.uint8),
         y_true=precomputed.y_true.astype(np.uint8),
         gt_brand_keys=np.asarray([str(value) for value in precomputed.gt_brand_keys], dtype=object),
@@ -314,11 +306,6 @@ def load_precomputed_cache(path: str) -> PrecomputedData:
     return PrecomputedData(
         sim_img=sim_img,
         sim_txt=np.asarray(archive["sim_txt"], dtype=np.float32),
-        router_alpha=(
-            np.asarray(archive["router_alpha"], dtype=np.float32)
-            if "router_alpha" in archive.files
-            else np.full((int(sim_img.shape[0]),), 0.5, dtype=np.float32)
-        ),
         has_logo=np.asarray(archive["has_logo"], dtype=np.uint8),
         y_true=np.asarray(archive["y_true"], dtype=np.uint8),
         gt_brand_keys=[str(value) for value in np.asarray(archive["gt_brand_keys"], dtype=object).tolist()],

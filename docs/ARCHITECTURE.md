@@ -26,7 +26,7 @@ code.
 | A wide positional tuple used as implicit configuration | Paths use a named `DefaultPaths` dataclass; record and result structures are dataclasses. |
 | Experiment-specific assumptions in production code | Prompt ablations, protocol comparisons, diagnostics, figures, and data preparation live under `experiments/`. |
 | Cache files written into source or brand-library folders | Cache locations are explicit command inputs and default under ignored output/cache locations. |
-| Duplicate VLBrandPhish model components | `inference/vlbrandphish/components/brand/` owns the shared encoder, fusion, repository, and naming pieces. |
+| Duplicate VLBrandPhish model components | `inference/vlbrandphish/components/brand/` owns the inference encoder, repository, and naming pieces; training-only neural blocks live under training/. |
 | A hidden dependency on a sibling research repository | The public runtime resolves local data/model paths and does not import sibling repositories at runtime. |
 | A study script reporting success with missing methods | Incomplete study runners raise `ExperimentImplementationRequired` before creating output folders. |
 
