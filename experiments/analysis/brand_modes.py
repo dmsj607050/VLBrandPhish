@@ -7,7 +7,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from common.paths import resolve_default_paths
+from inference.vlbrandphish.paths import resolve_default_paths
 from inference.vlbrandphish.components.brand.naming import normalize_brand_key
 
 

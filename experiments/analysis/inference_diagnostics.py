@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urlparse
 
-from common.paths import default_run_dir, resolve_default_paths
+from inference.vlbrandphish.paths import default_run_dir, resolve_default_paths
 from inference.vlbrandphish.components.brand.naming import normalize_brand_key, parse_semicolon_list
 from inference.vlbrandphish.domain_verification import registered_domain
 

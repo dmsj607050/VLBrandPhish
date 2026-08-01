@@ -47,8 +47,7 @@ VLBrandPhish-main/
 |   |-- ablations/                   # Branch / prompt / ref-library-size / fusion-weight
 |   |-- analysis/                    # Inference diagnostics and protocols (supporting)
 |   |-- figures/                     # Case-study and figure generation (supporting)
-|   `-- preparation/                 # Dataset/reference-library preparation
-|-- common/                          # Cross-method shared code (paths, annotation)
+|   `-- preparation/                 # Dataset/reference-library preparation (incl. VOC annotation tools)
 `-- tests/                           # Lightweight, data-free checks
 ```
 
@@ -67,7 +66,7 @@ pip install -r requirements.txt
 ```
 
 The repository uses a flat layout: run commands from the repository root so that
-`inference/`, `training/`, `common/`, and `experiments/` are importable. There is
+`inference/`, `training/`, and `experiments/` are importable. There is
 no installable package; `pip install -e .` is not required.
 
 For logo detection or detector training, install a compatible MMDetection stack following the OpenMMLab instructions, then run `pip install -r requirements-detector.txt`.

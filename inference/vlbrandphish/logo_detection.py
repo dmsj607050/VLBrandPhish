@@ -5,7 +5,7 @@ import os
 import time
 from typing import List, Tuple
 
-from common.paths import default_run_dir, resolve_default_paths
+from .paths import default_run_dir, resolve_default_paths
 from .data_contracts import DetectionSample, write_detection_top3_csv
 from .data_loader import TestBSample, load_testb_samples
 

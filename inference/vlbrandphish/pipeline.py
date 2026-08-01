@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from common.paths import default_run_dir, resolve_default_paths
+from .paths import default_run_dir, resolve_default_paths
 from .components.brand.naming import normalize_brand_key
 from .data_contracts import DetectionSample, read_detection_top3_csv
 from .domain_verification import phishintention_domain_accept, registered_domain

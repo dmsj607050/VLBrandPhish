@@ -19,7 +19,7 @@ except Exception:
     average_precision_score = None
     roc_auc_score = None
 
-from common.paths import default_run_dir, resolve_default_paths
+from inference.vlbrandphish.paths import default_run_dir, resolve_default_paths
 from inference.vlbrandphish.components.brand.naming import normalize_brand_key
 from inference.vlbrandphish.data_contracts import DetectionSample, read_detection_top3_csv
 from inference.vlbrandphish.cache import (

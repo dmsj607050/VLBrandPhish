@@ -9,7 +9,7 @@ import sys
 import time
 from typing import Any, Dict, List, Optional
 
-from common.paths import default_run_dir, resolve_default_paths
+from inference.vlbrandphish.paths import default_run_dir, resolve_default_paths
 from .prompt_modes import _discover_latest_stage2_summary
 
 

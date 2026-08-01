@@ -51,7 +51,7 @@ def _tracked_files(root: Path) -> list[Path]:
             for name in ("README.md", "LICENSE", "pyproject.toml", "requirements.txt")
             if (root / name).is_file()
         ]
-        for directory in ("inference", "training", "common", "experiments", "scripts", "docs"):
+        for directory in ("inference", "training", "experiments", "scripts", "docs"):
             base = root / directory
             if base.is_dir():
                 candidates.extend(path for path in base.rglob("*") if path.is_file())
@@ -78,6 +78,18 @@ def _scan_bytes(path: Path) -> Iterable[str]:
     return tuple(name for name, pattern in SENSITIVE_PATTERNS.items() if pattern.search(payload))
 
 
+def _is_allowed_under_local_only(relative: str) -> bool:
+    """A tracked file under data/models/outputs is allowed if it is a placeholder
+    (.gitkeep), a README, or (under data/) a dataset documentation markdown file.
+    Actual data, screenshots, and weight files must not be tracked."""
+    name = relative.rsplit("/", 1)[-1]
+    if name in {".gitkeep", "README.md"}:
+        return True
+    if relative.startswith("data/") and name.endswith(".md"):
+        return True
+    return relative in LOCAL_ONLY_ALLOWLIST
+
+
 def verify(root: Path) -> list[str]:
     failures: list[str] = []
     for required in REQUIRED_FILES:
@@ -89,7 +101,7 @@ def verify(root: Path) -> list[str]:
             continue
         relative = _relative(path, root)
         top_level = relative.split("/", 1)[0]
-        if top_level in {"data", "models", "outputs"} and relative not in LOCAL_ONLY_ALLOWLIST:
+        if top_level in {"data", "models", "outputs"} and not _is_allowed_under_local_only(relative):
             failures.append(f"tracked local-only artifact: {relative}")
         for issue in _scan_bytes(path):
             failures.append(f"{issue}: {relative}")
