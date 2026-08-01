@@ -28,7 +28,7 @@ VLBrandPhish-main/
 |       |-- decision/                # Domain matching and final decision policy
 |       |-- evaluation/              # Metrics and report generation
 |       |-- runtime/                 # Paths, caches, and workflow data types
-|       `-- pipeline/                # End-to-end Stage 2 CLI and orchestration
+|       `-- run.py                   # End-to-end Stage 2 CLI and orchestration
 |-- training/                        # Training code (VLBrandPhish only)
 |   `-- vlbrandphish/
 |       |-- logo_detection/          # MMDetection/DINO logo-detector training
@@ -94,7 +94,7 @@ python cli.py infer \\
 python cli.py train-brand --config training/vlbrandphish/brand_recognition/configs/stage1_siglip.yaml
 ```
 
-The `infer` command accepts explicit paths for every dataset and model input. Use `--model-dir` when the saved checkpoint contains a machine-specific or stale Hugging Face model path. Run `python cli.py infer --help` for the complete interface. The legacy wrapper `python scripts/train_brand.py ...` remains available for existing training jobs.
+The `infer` command accepts explicit paths for every dataset and model input. Double-click `inference/vlbrandphish/run_e2e.bat` for a local two-stage run after copying and filling in `run_e2e.local.example.bat` as `run_e2e.local.bat`. Use `--model-dir` when the saved checkpoint contains a machine-specific or stale Hugging Face model path. Run `python cli.py infer --help` for the complete interface. The legacy wrapper `python scripts/train_brand.py ...` remains available for existing training jobs.
 
 ## Reproducibility and release
 

@@ -42,7 +42,7 @@ inference/vlbrandphish/data --> detection --> recognition --> decision --> evalu
                                        \---------- runtime ---------------/
                                                          |
                                                          v
-                                                   pipeline/cli
+                                                     run.py
 
 experiments/* --> public training/inference interfaces or saved output artifacts
 ```

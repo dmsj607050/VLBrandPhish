@@ -8,7 +8,7 @@ from typing import Tuple
 
 from ..components.brand.encoders import CLIPEncoder
 from ..components.brand.repository import BrandRepository, build_brand_repository
-from ..runtime.cache import _build_repo_cache_key, _load_brand_repo_cache, _save_brand_repo_cache
+from ..runtime.cache import build_repository_cache_key, load_brand_repository_cache, save_brand_repository_cache
 
 
 def load_brand_resources(
@@ -34,7 +34,7 @@ def load_brand_resources(
     )
     print(f"[inference] encoder loaded in {time.perf_counter() - t0:.2f}s")
 
-    repo_cache_key = _build_repo_cache_key(
+    repo_cache_key = build_repository_cache_key(
         brand_ckpt=os.path.abspath(brand_checkpoint),
         model_dir=os.path.abspath(model_dir) if model_dir else "",
         logo_library_dir=os.path.abspath(logo_library_dir),
@@ -50,7 +50,7 @@ def load_brand_resources(
 
     if use_repository_cache and not rebuild_repository_cache and os.path.isfile(repo_cache_path):
         try:
-            repo = _load_brand_repo_cache(repo_cache_path, encoder.device)
+            repo = load_brand_repository_cache(repo_cache_path, encoder.device)
             repo_cache_hit = True
             print(f"[cache] brand_repo hit: {repo_cache_path}")
         except Exception as exc:
@@ -69,7 +69,7 @@ def load_brand_resources(
         )
         if use_repository_cache:
             try:
-                _save_brand_repo_cache(repo_cache_path, repo)
+                save_brand_repository_cache(repo_cache_path, repo)
                 print(f"[cache] brand_repo saved: {repo_cache_path}")
             except Exception as exc:
                 print(f"[cache] brand_repo save failed: {type(exc).__name__}: {exc}")

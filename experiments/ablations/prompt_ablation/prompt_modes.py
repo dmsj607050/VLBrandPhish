@@ -21,19 +21,19 @@ except Exception:
 
 from inference.vlbrandphish.runtime.paths import default_run_dir, resolve_default_paths
 from inference.vlbrandphish.components.brand.naming import normalize_brand_key
-from inference.vlbrandphish.data.contracts import DetectionSample, read_detection_top3_csv
+from inference.vlbrandphish.data.detection_csv import DetectionSample, read_detection_top3_csv
 from inference.vlbrandphish.runtime.cache import (
-    _build_query_cache_key,
-    _hash_dir_tree_signature,
-    _hash_file_signature,
-    _load_brand_repo_cache,
-    _load_precomputed_cache,
-    _load_query_cache,
-    _save_brand_repo_cache,
-    _save_precomputed_cache,
-    _save_query_cache,
+    build_query_cache_key,
+    hash_dir_tree_signature,
+    hash_file_signature,
+    load_brand_repository_cache,
+    load_precomputed_cache,
+    load_query_cache,
+    save_brand_repository_cache,
+    save_precomputed_cache,
+    save_query_cache,
 )
-from inference.vlbrandphish.recognition.features import _compute_alpha_output, _precompute_query_features
+from inference.vlbrandphish.recognition.features import compute_alpha_output, precompute_query_features
 from inference.vlbrandphish.evaluation.metrics import (
     _build_brand_level_reports,
     _build_prediction_rows,
@@ -41,11 +41,12 @@ from inference.vlbrandphish.evaluation.metrics import (
     _objective_value,
     _parse_grid_values,
 )
-from inference.vlbrandphish.data.image_paths import _inspect_detection_csv_format, _iter_items
-from inference.vlbrandphish.pipeline import _print_runtime_format_info
+from inference.vlbrandphish.data.image_paths import inspect_detection_csv_format
+from inference.vlbrandphish.runtime.progress import iter_with_progress
+from inference.vlbrandphish.runtime.diagnostics import print_runtime_format_info
 from inference.vlbrandphish.runtime.types import Metrics, PrecomputedData, QueryFeatureData
 from inference.vlbrandphish.components.brand.encoders import CLIPEncoder
-from inference.vlbrandphish.components.brand.repository import BrandRepository, _list_brand_dirs, _list_logo_paths, _load_brand_domains, _read_dbi_texts
+from inference.vlbrandphish.components.brand.repository import BrandRepository, list_brand_dirs, list_logo_paths, load_brand_domains, read_dbi_texts
 
 
 SIMPLE13_PROMPT_TEMPLATES: Tuple[str, ...] = (
@@ -163,14 +164,14 @@ def _build_prompt_repo_cache_key(
     if mode_spec.name == "dbi5":
         h = hashlib.md5()
         h.update(b"repo_cache_v3_strict_host_textmean")
-        _hash_file_signature(brand_ckpt, h)
-        _hash_file_signature(normal_urls_csv, h)
-        _hash_dir_tree_signature(
+        hash_file_signature(brand_ckpt, h)
+        hash_file_signature(normal_urls_csv, h)
+        hash_dir_tree_signature(
             logo_library_dir,
             h,
             suffixes=(".png", ".jpg", ".jpeg", ".bmp", ".webp"),
         )
-        _hash_dir_tree_signature(dbi5_dir, h, suffixes=(".txt",))
+        hash_dir_tree_signature(dbi5_dir, h, suffixes=(".txt",))
         h.update(f":max_logo_per_brand={int(max_logo_per_brand)}".encode("utf-8"))
         return h.hexdigest()[:16]
 
@@ -178,9 +179,9 @@ def _build_prompt_repo_cache_key(
     h.update(b"prompt_mode_repo_cache_v1")
     h.update(str(mode_spec.name).encode("utf-8"))
     h.update(str(mode_spec.text_score_mode).encode("utf-8"))
-    _hash_file_signature(brand_ckpt, h)
-    _hash_file_signature(normal_urls_csv, h)
-    _hash_dir_tree_signature(
+    hash_file_signature(brand_ckpt, h)
+    hash_file_signature(normal_urls_csv, h)
+    hash_dir_tree_signature(
         logo_library_dir,
         h,
         suffixes=(".png", ".jpg", ".jpeg", ".bmp", ".webp"),
@@ -205,7 +206,7 @@ def _make_mode_feature_cache_path(
     if mode_spec.name == "dbi5":
         h = hashlib.md5()
         h.update(b"stage2_feature_cache_v1")
-        _hash_file_signature(det_csv, h)
+        hash_file_signature(det_csv, h)
         h.update(str(os.path.abspath(benign_root)).encode("utf-8", errors="ignore"))
         h.update(str(os.path.abspath(phish_root)).encode("utf-8", errors="ignore"))
         h.update(f":max_samples={int(max_samples)}".encode("utf-8"))
@@ -215,7 +216,7 @@ def _make_mode_feature_cache_path(
 
     h = hashlib.md5()
     h.update(b"prompt_mode_feature_cache_v1")
-    _hash_file_signature(query_cache_path, h)
+    hash_file_signature(query_cache_path, h)
     h.update(f":repo={str(repo_cache_key)}".encode("utf-8"))
     h.update(f":mode={str(mode_spec.name)}".encode("utf-8"))
     h.update(f":text_score={str(mode_spec.text_score_mode)}".encode("utf-8"))
@@ -248,12 +249,12 @@ def _build_brand_repository_for_mode(
     dbi5_dir = os.path.abspath(dbi5_dir)
     normal_urls_csv = os.path.abspath(normal_urls_csv)
 
-    brand_names = _list_brand_dirs(logo_library_dir)
+    brand_names = list_brand_dirs(logo_library_dir)
     if not brand_names:
         raise FileNotFoundError(f"no brands found under logo library: {logo_library_dir}")
 
-    domains_map = _load_brand_domains(normal_urls_csv)
-    dbi_brand_names = set(_list_brand_dirs(dbi5_dir)) if mode_spec.text_source == "dbi5" else set()
+    domains_map = load_brand_domains(normal_urls_csv)
+    dbi_brand_names = set(list_brand_dirs(dbi5_dir)) if mode_spec.text_source == "dbi5" else set()
 
     logo_paths_by_brand: List[List[str]] = []
     text_lines_by_brand: List[List[str]] = []
@@ -261,7 +262,7 @@ def _build_brand_repository_for_mode(
 
     for brand in brand_names:
         brand_logo_dir = os.path.join(logo_library_dir, brand)
-        logo_paths = _list_logo_paths(brand_logo_dir)
+        logo_paths = list_logo_paths(brand_logo_dir)
         if int(max_logo_per_brand) > 0:
             logo_paths = logo_paths[: int(max_logo_per_brand)]
         if not logo_paths:
@@ -275,7 +276,7 @@ def _build_brand_repository_for_mode(
             if brand not in dbi_brand_names:
                 raise ValueError(f"Brand '{brand}' missing in DBI-5 directory: {dbi5_dir}")
             try:
-                text_lines = _read_dbi_texts(os.path.join(dbi5_dir, brand))
+                text_lines = read_dbi_texts(os.path.join(dbi5_dir, brand))
             except Exception:
                 # Be robust to partially generated prompt libraries.
                 text_lines = [str(brand)]
@@ -371,7 +372,7 @@ def _build_brand_repository_for_mode(
     )
 
 
-def _compute_similarity_from_query_features_mode(
+def compute_similarity_from_query_features_mode(
     *,
     query_data: QueryFeatureData,
     repo: BrandRepository,
@@ -388,7 +389,7 @@ def _compute_similarity_from_query_features_mode(
     resolve_stats["sim_fail"] = int(resolve_stats.get("sim_fail", 0))
     failure_examples: List[str] = []
 
-    iterator = _iter_items(range(n), desc=f"{mode_spec.name}_similarity", enabled=bool(progress))
+    iterator = iter_with_progress(range(n), description=f"{mode_spec.name}_similarity", enabled=bool(progress))
     for i in iterator:
         valid = np.asarray(query_data.query_mask[i], dtype=np.uint8).astype(bool)
         if not bool(valid.any()):
@@ -518,7 +519,7 @@ def _resolve_mode_list(raw: str) -> List[PromptModeSpec]:
     return out
 
 
-def _load_query_cache_or_build(
+def load_query_cache_or_build(
     *,
     query_cache_path: str,
     rebuild_query_cache: bool,
@@ -530,20 +531,20 @@ def _load_query_cache_or_build(
 ) -> Tuple[QueryFeatureData, int]:
     cache_hit = 0
     if (not bool(rebuild_query_cache)) and os.path.isfile(query_cache_path):
-        query_data = _load_query_cache(query_cache_path)
+        query_data = load_query_cache(query_cache_path)
         cache_hit = 1
         print(f"[cache] stage2_query hit: {query_cache_path}")
         return query_data, cache_hit
 
     print(f"[cache] stage2_query rebuild: {query_cache_path}")
-    query_data = _precompute_query_features(
+    query_data = precompute_query_features(
         detections=detections,
         encoder=encoder,
         benign_root=benign_root,
         phish_root=phish_root,
         progress=bool(progress),
     )
-    _save_query_cache(query_cache_path, query_data)
+    save_query_cache(query_cache_path, query_data)
     print(f"[cache] stage2_query saved: {query_cache_path}")
     return query_data, cache_hit
 
@@ -595,7 +596,7 @@ def _evaluate_single_mode(
     t_repo = time.perf_counter()
     if (not bool(rebuild_repo_cache)) and os.path.isfile(repo_cache_path):
         try:
-            repo = _load_brand_repo_cache(repo_cache_path, encoder.device)
+            repo = load_brand_repository_cache(repo_cache_path, encoder.device)
             repo_cache_hit = 1
             print(f"[cache] mode={mode_spec.name} brand_repo hit: {repo_cache_path}")
         except Exception as e:
@@ -612,7 +613,7 @@ def _evaluate_single_mode(
             text_batch_size=text_batch_size,
             mode_spec=mode_spec,
         )
-        _save_brand_repo_cache(repo_cache_path, repo)
+        save_brand_repository_cache(repo_cache_path, repo)
         print(f"[cache] mode={mode_spec.name} brand_repo saved: {repo_cache_path}")
 
     repo_elapsed = time.perf_counter() - t_repo
@@ -632,9 +633,9 @@ def _evaluate_single_mode(
         grid_search=True,
         grid_objective=str(grid_objective),
     )
-    _print_runtime_format_info(
+    print_runtime_format_info(
         det_csv=det_csv,
-        csv_info=_inspect_detection_csv_format(det_csv),
+        csv_info=inspect_detection_csv_format(det_csv),
         detections=detections,
         repo=repo,
         args=dummy_args,
@@ -658,7 +659,7 @@ def _evaluate_single_mode(
     t_feature = time.perf_counter()
     if (not bool(rebuild_feature_cache)) and os.path.isfile(feature_cache_path):
         try:
-            pre = _load_precomputed_cache(feature_cache_path)
+            pre = load_precomputed_cache(feature_cache_path)
             feature_cache_hit = 1
             print(f"[cache] mode={mode_spec.name} stage2_feature hit: {feature_cache_path}")
         except Exception as e:
@@ -667,14 +668,14 @@ def _evaluate_single_mode(
     sim_from_query_time = 0.0
     if pre is None:
         ts = time.perf_counter()
-        pre = _compute_similarity_from_query_features_mode(
+        pre = compute_similarity_from_query_features_mode(
             query_data=query_data,
             repo=repo,
             mode_spec=mode_spec,
             progress=bool(progress),
         )
         sim_from_query_time = time.perf_counter() - ts
-        _save_precomputed_cache(feature_cache_path, pre)
+        save_precomputed_cache(feature_cache_path, pre)
         print(f"[cache] mode={mode_spec.name} stage2_feature saved: {feature_cache_path}")
 
     feature_time = time.perf_counter() - t_feature
@@ -694,9 +695,9 @@ def _evaluate_single_mode(
     screenshot_urls = [str(d.url or "") for d in detections]
 
     t_search = time.perf_counter()
-    alpha_iter = _iter_items(alpha_grid, desc=f"{mode_spec.name}_grid_alpha", enabled=bool(progress))
+    alpha_iter = iter_with_progress(alpha_grid, description=f"{mode_spec.name}_grid_alpha", enabled=bool(progress))
     for alpha in alpha_iter:
-        alpha_out = _compute_alpha_output(
+        alpha_out = compute_alpha_output(
             alpha=float(alpha),
             pre=pre,
             repo=repo,
@@ -980,7 +981,7 @@ def main() -> None:
     if not query_cache_path:
         if not bool(args.rebuild_query_cache):
             raise ValueError("query_cache_path missing in summary.json; pass --query-cache-path or use --rebuild-query-cache")
-        query_cache_key = _build_query_cache_key(
+        query_cache_key = build_query_cache_key(
             brand_ckpt=brand_ckpt,
             det_csv=det_csv,
             max_samples=int(max_samples),
@@ -1011,7 +1012,7 @@ def main() -> None:
     encoder = CLIPEncoder(brand_ckpt, device=device)
     print(f"[prompt_compare] CLIP loaded in {time.perf_counter() - t_encoder:.2f}s device={encoder.device}")
 
-    query_data, query_cache_hit = _load_query_cache_or_build(
+    query_data, query_cache_hit = load_query_cache_or_build(
         query_cache_path=query_cache_path,
         rebuild_query_cache=bool(args.rebuild_query_cache),
         detections=detections,

@@ -12,12 +12,19 @@ from PIL import Image
 
 from ..components.brand.naming import normalize_brand_key
 from ..components.brand.repository import BrandRepository, score_query_features
-from ..data.contracts import DetectionSample
+from ..data.detection_csv import DetectionSample
 from ..decision.domain import phishintention_domain_accept, registered_domain
-from ..data.image_paths import _iter_items, _safe_crop, resolve_image_path
+from ..data.image_paths import _safe_crop, resolve_image_path
+from ..runtime.progress import iter_with_progress
 from ..runtime.types import AlphaOutput, PrecomputedData, QueryFeatureData
 
 def _top2_margin(sim: np.ndarray) -> np.ndarray:
+    """Return the top-1 minus top-2 similarity margin per query sample.
+
+    A larger margin indicates the model is more confident in its best brand match;
+    this margin feeds the dynamic_margin_gate fusion to decide how much weight to
+    place on image vs. text evidence.
+    """
     if sim.ndim != 2:
         return np.zeros((int(sim.shape[0]) if sim.ndim > 0 else 0,), dtype=np.float32)
     n = int(sim.shape[0])
@@ -26,6 +33,7 @@ def _top2_margin(sim: np.ndarray) -> np.ndarray:
         return np.zeros((max(n, 0),), dtype=np.float32)
     if b == 1:
         return np.asarray(sim[:, 0], dtype=np.float32)
+    # Partition is cheaper than fully sorting when only the two leading scores are needed.
     top2 = np.partition(sim, kth=b - 2, axis=1)[:, -2:]
     top1 = np.max(top2, axis=1)
     top2nd = np.min(top2, axis=1)
@@ -43,6 +51,13 @@ def _build_alpha_vector(
     gate_k: float,
     gate_b: float,
 ) -> np.ndarray:
+    """Build the per-sample image-vs-text fusion weight (alpha) vector.
+
+    - dynamic_margin_gate: alpha = sigmoid(k * (margin_img - margin_txt) + b).
+      When the image branch is more confident than text, alpha rises toward 1.
+    - router_gate: alpha comes from the trained router's weights.
+    - linear_alpha: a constant alpha for all samples.
+    """
     n = int(pre.sim_img.shape[0]) if pre.sim_img.ndim >= 1 else 0
     method = str(fusion_method or "").strip().lower()
     if method == "dynamic_margin_gate":
@@ -56,7 +71,7 @@ def _build_alpha_vector(
         alpha_vec = np.full((max(n, 0),), float(alpha), dtype=np.float32)
     return alpha_vec
 
-def _precompute_query_features(
+def precompute_query_features(
     *,
     detections: List[DetectionSample],
     encoder,
@@ -64,6 +79,14 @@ def _precompute_query_features(
     phish_root: str,
     progress: bool,
 ) -> QueryFeatureData:
+    """Resolve crops and encode each retained detector box exactly once.
+
+    Walks every detection sample in order: resolves the screenshot path, opens the
+    image, crops each retained logo box, encodes the crops twice -- once plain for
+    retrieval, once adapter-augmented for the router), and stores the results into
+    preallocated arrays. Failures at each stage are counted in ``resolve_stats``
+    with up to 10 example messages for debugging, but never abort the batch.
+    """
     n = len(detections)
     max_q = max([len(d.bboxes) for d in detections] + [1])
     d = int(getattr(encoder, "embed_dim", 768))
@@ -76,6 +99,7 @@ def _precompute_query_features(
     screenshot_domains: List[str] = []
     resolved_paths: List[str] = []
 
+    # Track each failure stage so dataset or decoding problems are visible without aborting inference.
     resolve_stats = {
         "direct_image_path_exists": 0,
         "resolved_from_sample_key": 0,
@@ -86,7 +110,7 @@ def _precompute_query_features(
     }
     failure_examples: List[str] = []
 
-    iterator = _iter_items(range(n), desc="stage2_query_encode", enabled=bool(progress))
+    iterator = iter_with_progress(range(n), description="stage2_query_encode", enabled=bool(progress))
     for i in iterator:
         det = detections[i]
         y_true[i] = 1 if bool(det.gt_is_phishing) else 0
@@ -186,12 +210,13 @@ def _precompute_query_features(
         resolve_stats=resolve_stats,
     )
 
-def _compute_similarity_from_query_features(
+def compute_similarity_from_query_features(
     *,
     query_data: QueryFeatureData,
     repo: BrandRepository,
     progress: bool,
 ) -> PrecomputedData:
+    """Score cached crop features against every brand without reopening screenshots."""
     n = int(query_data.query_feat.shape[0])
     b = int(len(repo.brand_names))
     sim_img = np.zeros((n, b), dtype=np.float32)
@@ -203,7 +228,7 @@ def _compute_similarity_from_query_features(
     resolve_stats["sim_fail"] = int(resolve_stats.get("sim_fail", 0))
     failure_examples: List[str] = []
 
-    iterator = _iter_items(range(n), desc="stage2_similarity", enabled=bool(progress))
+    iterator = iter_with_progress(range(n), description="stage2_similarity", enabled=bool(progress))
     for i in iterator:
         valid = np.asarray(query_data.query_mask[i], dtype=np.uint8).astype(bool)
         if not bool(valid.any()):
@@ -216,6 +241,7 @@ def _compute_similarity_from_query_features(
             sim_txt[i, :] = sim_txt_qb.max(dim=0).values.detach().cpu().numpy().astype(np.float32)
             route_w_np = np.asarray(query_data.route_weights[i][valid], dtype=np.float32)
             if route_w_np.ndim == 2 and route_w_np.shape[1] >= 2:
+                # The text branch weight is the alpha used by router-gated image/text fusion.
                 router_alpha[i] = float(np.clip(route_w_np[:, 1].mean(), 0.0, 1.0))
             has_logo[i] = 1
         except Exception as e:
@@ -241,25 +267,7 @@ def _compute_similarity_from_query_features(
         resolve_stats={str(k): int(v) for k, v in resolve_stats.items()},
     )
 
-def _precompute_similarity_mats(
-    *,
-    detections: List[DetectionSample],
-    encoder,
-    repo: BrandRepository,
-    benign_root: str,
-    phish_root: str,
-    progress: bool,
-) -> PrecomputedData:
-    q = _precompute_query_features(
-        detections=detections,
-        encoder=encoder,
-        benign_root=benign_root,
-        phish_root=phish_root,
-        progress=progress,
-    )
-    return _compute_similarity_from_query_features(query_data=q, repo=repo, progress=progress)
-
-def _compute_alpha_output(
+def compute_alpha_output(
     *,
     fusion_method: str,
     alpha: float,
@@ -269,6 +277,7 @@ def _compute_alpha_output(
     repo: BrandRepository,
     screenshot_urls: List[str],
 ) -> AlphaOutput:
+    """Fuse image/text evidence and apply the brand-domain consistency gate."""
     alpha_vec = _build_alpha_vector(
         pre=pre,
         fusion_method=str(fusion_method),
@@ -301,11 +310,13 @@ def _compute_alpha_output(
             url_reason_above_thr=["" for _ in range(max(n, 0))],
         )
 
+    # Keep the best fused brand and its component scores for the final decision report.
     best_idx = np.asarray(np.argmax(fused, axis=1), dtype=np.int32)
     best_score = np.asarray(np.max(fused, axis=1), dtype=np.float32)
     best_score_img = np.asarray(pre.sim_img[np.arange(n), best_idx], dtype=np.float32)
     best_score_txt = np.asarray(pre.sim_txt[np.arange(n), best_idx], dtype=np.float32)
 
+    # Samples without a detector box do not receive a brand prediction.
     has_logo_bool = pre.has_logo.astype(bool)
     best_idx[~has_logo_bool] = -1
     best_score[~has_logo_bool] = 0.0
@@ -318,6 +329,7 @@ def _compute_alpha_output(
     pred_brand_names = ["" for _ in range(n)]
     url_reason_above_thr = ["" for _ in range(n)]
 
+    # Apply the predicted brand's official-domain allow-list to each screenshot URL.
     for i in range(n):
         if not has_logo_bool[i]:
             continue
@@ -338,6 +350,7 @@ def _compute_alpha_output(
         url_match[i] = 1 if bool(url_is_match) else 0
         url_reason_above_thr[i] = str(url_reason or "")
 
+        # Brand correctness is an evaluation-only value defined for phishing samples.
         if int(pre.y_true[i]) == 1 and str(pre.gt_brand_keys[i]):
             brand_match[i] = 1 if normalize_brand_key(pred_brand) == pre.gt_brand_keys[i] else 0
 

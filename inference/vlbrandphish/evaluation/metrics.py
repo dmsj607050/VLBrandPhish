@@ -9,10 +9,11 @@ from typing import Dict, List, Tuple
 import numpy as np
 
 from ..components.brand.naming import normalize_brand_key
-from ..data.contracts import DetectionSample
+from ..data.detection_csv import DetectionSample
 from ..runtime.types import AlphaOutput, Metrics, PrecomputedData
 
-def _parse_grid_values(raw: str, fallback: List[float]) -> List[float]:
+def parse_grid_values(raw: str, fallback: List[float]) -> List[float]:
+    """Parse a comma list or inclusive start:end:step range into unique floats."""
     txt = str(raw or "").strip()
     if not txt:
         return [float(x) for x in fallback]
@@ -45,7 +46,8 @@ def _parse_grid_values(raw: str, fallback: List[float]) -> List[float]:
         out.append(float(v))
     return out
 
-def _objective_value(metrics: Metrics, objective: str) -> float:
+def objective_value(metrics: Metrics, objective: str) -> float:
+    """Select the requested metric used to rank threshold/fusion candidates."""
     m = metrics.to_dict()
     key = str(objective or "f1").strip().lower()
     if key == "accuracy":
@@ -58,13 +60,20 @@ def _objective_value(metrics: Metrics, objective: str) -> float:
         return float(m["brand_acc_on_phish"])
     return float(m["f1"])
 
-def _evaluate_threshold(
+def evaluate_threshold(
     *,
     pre: PrecomputedData,
     alpha_out: AlphaOutput,
     threshold: float,
 ) -> Tuple[Metrics, np.ndarray]:
+    """Apply the three-condition phishing decision and compute confusion-matrix metrics.
+
+    A sample is predicted phishing only when ALL hold: (1) a logo box was detected,
+    (2) the fused brand score meets the threshold, (3) the screenshot domain is
+    inconsistent with the predicted brand's official domains.
+    """
     has_logo = pre.has_logo.astype(bool)
+    # A phishing decision requires a detected logo, sufficient evidence, and a domain mismatch.
     pred = has_logo & (alpha_out.best_score >= float(threshold)) & (alpha_out.url_would_be_phish.astype(bool))
     y = pre.y_true.astype(bool)
 
@@ -86,7 +95,7 @@ def _evaluate_threshold(
     )
     return m, pred.astype(np.uint8)
 
-def _build_prediction_rows(
+def build_prediction_rows(
     *,
     detections: List[DetectionSample],
     pre: PrecomputedData,
@@ -152,16 +161,24 @@ def _safe_div(numer: int, denom: int) -> float:
         return 0.0
     return float(numer) / float(denom)
 
-def _build_brand_level_reports(
+def build_brand_level_reports(
     *,
     rows: List[Dict[str, object]],
     threshold: float,
 ) -> Tuple[List[Dict[str, object]], Dict[str, object]]:
+    """Aggregate per-sample predictions into per-brand diagnosis rows and an overview.
+
+    For each ground-truth brand we count how many phishing samples were detected,
+    how many had the logo box found, how many got the top-1 brand correct, and how
+    many were ultimately correct *and* flagged as phishing. Each sample is also
+    classified into exactly one failure/success reason for confusion analysis.
+    """
     grouped: Dict[str, Dict[str, object]] = {}
     wrong_pred_counters: Dict[str, Counter[str]] = {}
     overall_reason_counter: Counter[str] = Counter()
 
     for row in rows:
+        # Brand-level diagnostics apply only to ground-truth phishing samples.
         if int(row.get("gt_is_phishing", 0) or 0) != 1:
             continue
 
@@ -209,6 +226,7 @@ def _build_brand_level_reports(
             reason = "no_logo_box"
         elif not brand_correct:
             reason = "brand_wrong"
+            # Preserve the displayed prediction in the error analysis even if its normalized key is empty.
             pred_brand_raw = str(row.get("pred_brand", "") or "").strip()
             if pred_brand_raw:
                 wrong_pred_counters.setdefault(gt_brand_key, Counter())

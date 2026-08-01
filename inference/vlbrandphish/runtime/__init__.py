@@ -1,1 +1,1 @@
-"""Runtime paths, caches, and shared data types."""
+"""Runtime paths, caches, progress reporting, diagnostics, and shared data types."""

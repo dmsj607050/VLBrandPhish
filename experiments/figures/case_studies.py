@@ -21,8 +21,8 @@ import torch
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from PIL import Image, ImageDraw
 
-from inference.vlbrandphish.data.contracts import DetectionSample, read_detection_top3_csv
-from inference.vlbrandphish.components.brand.repository import _list_logo_paths
+from inference.vlbrandphish.data.detection_csv import DetectionSample, read_detection_top3_csv
+from inference.vlbrandphish.components.brand.repository import list_logo_paths
 
 
 CASE_DEFS: Dict[str, Dict[str, Any]] = {
@@ -189,7 +189,7 @@ def _load_json(path: str) -> Dict[str, Any]:
 def _build_logo_paths_by_brand(logo_library_dir: str, brand_names: Sequence[str]) -> Dict[str, List[str]]:
     out: Dict[str, List[str]] = {}
     for brand in brand_names:
-        out[str(brand)] = [str(Path(p).resolve()) for p in _list_logo_paths(os.path.join(logo_library_dir, str(brand)))]
+        out[str(brand)] = [str(Path(p).resolve()) for p in list_logo_paths(os.path.join(logo_library_dir, str(brand)))]
     return out
 
 

@@ -1,3 +1,5 @@
+"""Normalize domains and apply the conservative URL-to-brand consistency rule."""
+
 from __future__ import annotations
 
 import os
@@ -304,14 +306,17 @@ def _extract_domain_parts_fallback(url: str) -> Tuple[str, str, str]:
 
 
 def extract_domain_parts(url: str) -> Tuple[str, str, str]:
-    """Extract a registrable domain without fetching a public suffix list at runtime."""
+    """Extract a registrable domain without fetching a public suffix list at runtime.
+
+    Returns ``(registrable_domain, domain_part, suffix_part)`` e.g. ``("example.com",
+    "example", ".com")``. Prefers ``tldextract`` with its bundled offline suffix
+    snapshot for accuracy; falls back to a heuristic splitter when the dependency is
+    unavailable so the pipeline still runs in minimal environments.
+    """
     try:
         import tldextract  # type: ignore
 
-        # Use tldextract's bundled suffix snapshot only. This keeps offline
-        # artifact evaluation deterministic and avoids an implicit network
-        # request or a machine-specific cache.
-        extractor = tldextract.TLDExtract(suffix_list_urls=None)
+
         ext = extractor(str(url or ''))
         suffix = str(ext.suffix or "")
         domain = str(ext.domain or "")
@@ -334,6 +339,7 @@ COUNTRY_TLDS = set(_FALLBACK_COUNTRY_TLDS)
 
 @dataclass
 class DomainMatchResult:
+    """Result of checking a screenshot URL against the predicted brand allowlist."""
     accept: bool
     extracted_domain: str
     domain_part: str
@@ -342,8 +348,14 @@ class DomainMatchResult:
 
 
 def phishintention_domain_accept(url: str, matched_domain: Iterable[str]) -> DomainMatchResult:
-    # Same semantics as PhishIntention _domain_accept:
-    # accept=True means domain inconsistency (can be phishing).
+    """Apply the conservative PhishIntention domain-consistency rule.
+
+    accept=True means the screenshot domain is inconsistent with the matched
+    brand and therefore remains eligible for a phishing decision. Exact registered
+    domain matches and conservative country-code suffix variants are rejected.
+    """
+    # Preserve the original conservative allow-list semantics while exposing a structured reason.
+    # Decompose the screenshot URL once; all subsequent allow-list checks use these values.
     extracted_domain, domain_part, suffix_part = extract_domain_parts(url)
 
     normalized_matched: List[str] = []
@@ -361,6 +373,7 @@ def phishintention_domain_accept(url: str, matched_domain: Iterable[str]) -> Dom
         if md_part and md_part not in matched_domain_parts:
             matched_domain_parts.append(md_part)
 
+    # No official domain was available for the matched brand: keep the sample eligible.
     if not normalized_matched:
         return DomainMatchResult(
             accept=True,
@@ -370,6 +383,7 @@ def phishintention_domain_accept(url: str, matched_domain: Iterable[str]) -> Dom
             reason="empty_matched_domain",
         )
 
+    # Exact registered-domain match means the page belongs to the official site.
     if extracted_domain and extracted_domain in normalized_matched:
         return DomainMatchResult(
             accept=False,
@@ -379,6 +393,7 @@ def phishintention_domain_accept(url: str, matched_domain: Iterable[str]) -> Dom
             reason="exact_domain_match",
         )
 
+    # Preserve the original conservative handling of country-code suffix variants.
     if domain_part and (domain_part in matched_domain_parts):
         try:
             if ("." + suffix_part.split(".")[-1]) in COUNTRY_TLDS:
@@ -398,6 +413,7 @@ def phishintention_domain_accept(url: str, matched_domain: Iterable[str]) -> Dom
                 reason="domain_parse_error_default_accept",
             )
 
+    # An unparsable URL cannot establish that a page is official.
     if not extracted_domain:
         return DomainMatchResult(
             accept=True,

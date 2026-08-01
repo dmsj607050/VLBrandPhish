@@ -1,3 +1,5 @@
+"""Resolve portable repository-relative defaults and timestamped output directories."""
+
 from __future__ import annotations
 
 import os
@@ -8,6 +10,7 @@ from typing import Dict
 
 @dataclass(frozen=True)
 class DefaultPaths:
+    """Repository-relative defaults used only when a CLI option is omitted."""
     phishkiller_root: str
     testb_root: str
     benign_root: str
@@ -41,8 +44,12 @@ def _abs_from_root(root: str, rel_path: str) -> str:
 
 
 def resolve_default_paths(this_file: str) -> DefaultPaths:
-    # Resolve from the repository root so command-line defaults remain
-    # portable after cloning or installing the package in editable mode.
+    """Resolve defaults from the repository containing ``this_file``.
+
+    Paths are resolved relative to the repository root (three levels up from this
+    file: runtime/ -> vlbrandphish/ -> inference/ -> repository root) so that
+    """
+    # runtime/ is three levels below the repository root.
     repo_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(this_file)), "..", "..", ".."))
     testb_root = _abs_from_root(repo_root, REL_PATHS["testb_root"])
 
@@ -63,5 +70,6 @@ def resolve_default_paths(this_file: str) -> DefaultPaths:
 
 
 def default_run_dir(base_out_dir: str, prefix: str) -> str:
+    """Return a timestamped output path without creating it."""
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return os.path.join(os.path.abspath(base_out_dir), f"{prefix}_{stamp}")

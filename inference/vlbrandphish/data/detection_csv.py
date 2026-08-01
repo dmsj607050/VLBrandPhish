@@ -1,3 +1,5 @@
+"""Define the stable Top-3 logo-detection CSV contract shared by both inference stages."""
+
 from __future__ import annotations
 
 import csv
@@ -33,6 +35,7 @@ DETECTION_TOP3_HEADER: List[str] = [
 
 @dataclass
 class DetectionSample:
+    """One screenshot, its label metadata, and up to three detector boxes."""
     image_path: str
     url: str
     sample_key: str
@@ -93,13 +96,15 @@ def _from_dict_row(row: Dict[str, str]) -> DetectionSample:
 
 
 def _from_list_row(cols: List[str]) -> DetectionSample:
+    """Parse a headerless detection row, supporting both current and legacy column layouts."""
     if len(cols) < 20:
         raise ValueError(f"Headerless detection row must have >=20 columns, got {len(cols)}")
 
-    # Current Test-B top3 format:
-    # image_path,url,sample_key,gt_is_phishing,gt_brand,brand_split,has_logo,det_score_1,x1_1,...
-    # Legacy format:
-    # image_path,url,sample_key,gt_is_phishing,gt_brand,det_score_1,x1_1,...
+    # Current Test-B rows include a brand_split column; legacy rows omit it.
+    #   image_path,url,sample_key,gt_is_phishing,gt_brand,brand_split,has_logo,det_score_1,x1_1,...
+    # The legacy layout starts the detector fields immediately after gt_brand.
+    # Legacy: image_path,url,sample_key,gt_is_phishing,gt_brand,det_score_1,x1_1,...
+    # The number of columns distinguishes the legacy and current detector CSV layouts.
     if len(cols) >= 22:
         base = 7
     else:
@@ -136,6 +141,7 @@ def _from_list_row(cols: List[str]) -> DetectionSample:
 
 
 def read_detection_top3_csv(path: str) -> List[DetectionSample]:
+    """Read the canonical headered or legacy headerless Top-3 detection CSV."""
     with open(path, "r", encoding="utf-8-sig", errors="ignore", newline="") as f:
         reader = csv.reader(f)
         first_row: List[str] = []
@@ -196,6 +202,7 @@ def detection_to_csv_row(sample: DetectionSample) -> Dict[str, object]:
 
 
 def write_detection_top3_csv(samples: List[DetectionSample], path: str) -> None:
+    """Write the canonical headered Top-3 detection interchange file."""
     with open(path, "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=DETECTION_TOP3_HEADER)
         writer.writeheader()

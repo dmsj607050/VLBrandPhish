@@ -1,3 +1,5 @@
+"""Turn a brand score and domain evidence into the final phishing decision."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -8,6 +10,7 @@ from .domain import registered_domain
 
 @dataclass
 class UrlDecision:
+    """Final prediction together with the URL evidence that explains it."""
     pred_is_phishing: bool
     url_match: bool
     screenshot_domain: str
@@ -20,6 +23,7 @@ def decide_with_threshold_and_url(
     screenshot_url: str,
     official_domains: Iterable[str],
 ) -> UrlDecision:
+    """Require a sufficient score and a screenshot domain absent from the official allowlist."""
     if float(score) < float(threshold):
         return UrlDecision(
             pred_is_phishing=False,

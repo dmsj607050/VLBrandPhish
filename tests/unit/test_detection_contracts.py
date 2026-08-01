@@ -5,10 +5,10 @@ from pathlib import Path
 import torch
 from PIL import Image
 
-from inference.vlbrandphish.data.contracts import DetectionSample, read_detection_top3_csv, write_detection_top3_csv
-from inference.vlbrandphish.data.dataset import load_testb_samples
+from inference.vlbrandphish.data.detection_csv import DetectionSample, read_detection_top3_csv, write_detection_top3_csv
+from inference.vlbrandphish.data.testb_dataset import load_testb_samples
 from inference.vlbrandphish.decision.policy import decide_with_threshold_and_url
-from inference.vlbrandphish.recognition.features import _precompute_query_features
+from inference.vlbrandphish.recognition.features import precompute_query_features
 
 
 class PipelineContractsTest(unittest.TestCase):
@@ -52,7 +52,7 @@ class PipelineContractsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             image_path = Path(directory) / "sample.png"
             Image.new("RGB", (16, 16), color="white").save(image_path)
-            query = _precompute_query_features(
+            query = precompute_query_features(
                 detections=[
                     DetectionSample(
                         image_path=str(image_path),

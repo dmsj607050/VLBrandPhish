@@ -1,3 +1,5 @@
+"""Build and score the in-memory brand evidence repository used during inference."""
+
 from __future__ import annotations
 
 import csv
@@ -16,6 +18,7 @@ from .encoders import CLIPEncoder
 
 @dataclass
 class BrandRepository:
+    """Pre-encoded logos, prompts, and official domains indexed by brand."""
     brand_names: List[str]
     logo_emb: torch.Tensor      # [B, K, D]
     logo_mask: torch.Tensor     # [B, K]
@@ -41,7 +44,8 @@ TRAIN_TEMPLATE_PROMPTS = [
 ]
 
 
-def _list_brand_dirs(root: str) -> List[str]:
+def list_brand_dirs(root: str) -> List[str]:
+    """Return visible brand subdirectories in deterministic order."""
     if not os.path.isdir(root):
         raise FileNotFoundError(f"Brand directory root not found: {root}")
     return [
@@ -108,7 +112,8 @@ def _resolve_optional_brand_dir(root: str, brand: str, names: List[str]) -> str:
     return ""
 
 
-def _list_logo_paths(brand_dir: str) -> List[str]:
+def list_logo_paths(brand_dir: str) -> List[str]:
+    """Return reference images, preferring a brand-specific ``logos`` directory."""
     exts = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
     logo_dir = os.path.join(brand_dir, "logos")
     scan_dir = logo_dir if os.path.isdir(logo_dir) else brand_dir
@@ -121,7 +126,7 @@ def _list_logo_paths(brand_dir: str) -> List[str]:
     return out
 
 
-def _read_dbi_texts(brand_dbi_dir: str) -> List[str]:
+def read_dbi_texts(brand_dbi_dir: str) -> List[str]:
     candidates = [
         os.path.join(brand_dbi_dir, fn)
         for fn in sorted(os.listdir(brand_dbi_dir))
@@ -163,7 +168,8 @@ def _build_custom_prompt_texts(brand_name: str, templates: Sequence[str]) -> Lis
     return out
 
 
-def _load_brand_domains(normal_urls_csv: str) -> Dict[str, List[str]]:
+def load_brand_domains(normal_urls_csv: str) -> Dict[str, List[str]]:
+    """Load official hostnames keyed by normalized brand without depending on decision policy."""
     def _host_from_url_raw(url: str) -> str:
         raw = str(url or "").strip()
         if not raw:
@@ -221,15 +227,15 @@ def build_brand_repository(
     dbi5_dir = os.path.abspath(dbi5_dir)
     normal_urls_csv = os.path.abspath(normal_urls_csv)
 
-    brand_names = _list_brand_dirs(logo_library_dir)
+    brand_names = list_brand_dirs(logo_library_dir)
     text_mode = str(brand_text_mode or "dbi5").strip().lower()
-    dbi_brand_names = _list_brand_dirs(dbi5_dir) if text_mode == "dbi5" else []
+    dbi_brand_names = list_brand_dirs(dbi5_dir) if text_mode == "dbi5" else []
     custom_prompt_templates = (
         _read_custom_prompt_templates(custom_prompt_file)
         if text_mode in {"custom_prompt", "custom_prompts", "prompt_file"}
         else []
     )
-    domains_map = _load_brand_domains(normal_urls_csv)
+    domains_map = load_brand_domains(normal_urls_csv)
 
     logo_paths_by_brand: List[List[str]] = []
     text_lines_by_brand: List[List[str]] = []
@@ -245,14 +251,14 @@ def build_brand_repository(
                 missing_dbi.append(brand)
                 continue
 
-        logo_paths = _list_logo_paths(os.path.join(logo_library_dir, brand))
+        logo_paths = list_logo_paths(os.path.join(logo_library_dir, brand))
         if int(max_logo_per_brand) > 0:
             logo_paths = logo_paths[: int(max_logo_per_brand)]
         if not logo_paths:
             raise ValueError(f"Brand '{brand}' has no logo images")
 
         if text_mode == "dbi5":
-            text_lines = _read_dbi_texts(dbi_brand_dir)
+            text_lines = read_dbi_texts(dbi_brand_dir)
         elif text_mode in {"train_templates_mean", "train12_mean", "train_templates"}:
             text_lines = _build_train_template_texts(brand)
         elif text_mode in {"custom_prompt", "custom_prompts", "prompt_file"}:
@@ -354,8 +360,7 @@ def build_brand_repository(
             text_emb[bid, j] = feats[k]
             text_mask[bid, j] = True
 
-    # Align with CLIP_text_prompt/eval_system brand_index:
-    # aggregate multi-line brand descriptions into one mean-normalized text prototype.
+    # Average valid text prompt embeddings per brand; this matches the training-time text prototype.
     txt_valid = text_mask.to(dtype=torch.float32).unsqueeze(-1)
     txt_sum = (text_emb * txt_valid).sum(dim=1)
     txt_cnt = txt_valid.sum(dim=1).clamp_min(1.0)
@@ -378,6 +383,12 @@ def score_query_features(
     repo: BrandRepository,
     alpha: float,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Score query crops against the repository, returning fused/image/text similarities.
+
+    Returns ``(fused, sim_img, sim_txt)`` each of shape ``[Q, B]`` where B is the
+    number of brands. ``sim_img`` takes the max over per-brand logo slots; ``sim_txt``
+    uses the mean text prototype rather than per-line max to match training.
+    """
     if query_feats.ndim != 2:
         raise ValueError(f"query_feats must be 2D [Q,D], got shape={tuple(query_feats.shape)}")
     if int(query_feats.shape[0]) <= 0:
@@ -385,11 +396,12 @@ def score_query_features(
         empty = torch.zeros((0, b), dtype=torch.float32, device=query_feats.device)
         return empty, empty, empty
 
+    # Compare every query crop against every logo slot, then keep each brand's strongest logo match.
     sim_img_full = torch.einsum("qd,bkd->qbk", query_feats, repo.logo_emb)
     sim_img_full = sim_img_full.masked_fill(~repo.logo_mask.unsqueeze(0), -1e9)
     sim_img = sim_img_full.max(dim=-1).values
 
-    # Use mean text prototype (same as CLIP_text_prompt/brand_index path), not per-line max.
+    # Compare each query crop against the mean text prototype of every brand.
     sim_txt = torch.einsum("qd,bd->qb", query_feats, repo.text_proto)
 
     fused = float(alpha) * sim_img + (1.0 - float(alpha)) * sim_txt

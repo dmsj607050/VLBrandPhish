@@ -39,6 +39,7 @@ class MMDetTopKDetector:
             raise ModuleNotFoundError("Missing optional dependency 'mmdet'.") from error
 
         result = inference_detector(self._model, image_path)
+        # MMDetection 3.x stores predictions in the pred_instances attribute.
         instances = getattr(result, "pred_instances", None)
         if instances is None:
             return []
@@ -49,6 +50,7 @@ class MMDetTopKDetector:
 
         boxes = bboxes.detach().cpu().numpy().astype(np.float32)
         values = scores.detach().cpu().numpy().astype(np.float32)
+        # Filter by confidence before retaining the highest-scoring top-k boxes.
         keep = values >= float(score_thr)
         boxes, values = boxes[keep], values[keep]
         if boxes.size == 0:

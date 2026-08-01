@@ -8,22 +8,18 @@ from typing import Dict, List, Optional, Tuple
 
 from PIL import Image
 
-from .contracts import DetectionSample
+from .detection_csv import DetectionSample
 
-try:
-    from tqdm import tqdm
-except Exception:
-    tqdm = None
-
-def _iter_items(items, *, desc: str, enabled: bool):
-    if enabled and tqdm is not None:
-        yield from tqdm(items, desc=desc)
-        return
-    yield from items
 
 def _safe_crop(image: Image.Image, bbox: Tuple[float, float, float, float]) -> Optional[Image.Image]:
+    """Crop a logo region from a screenshot, clamping coordinates to image bounds.
+
+    Returns ``None`` when the clamped box is empty (degenerate), so callers can skip
+    encoding invalid crops without raising.
+    """
     w, h = image.size
     x1, y1, x2, y2 = [float(v) for v in bbox]
+    # Clamp detector coordinates to the image bounds before cropping.
     x1 = max(0.0, min(x1, float(w)))
     x2 = max(0.0, min(x2, float(w)))
     y1 = max(0.0, min(y1, float(h)))
@@ -71,6 +67,12 @@ def _resolve_phish_path(phish_root: str, sample_key: str, gt_brand: Optional[str
     return ""
 
 def resolve_image_path(det: DetectionSample, benign_root: str, phish_root: str) -> str:
+    """Prefer a recorded path, then reconstruct the Test-B screenshot from metadata.
+
+    Resolution order: (1) the ``image_path`` field if the file still exists on disk;
+    (2) the Test-B directory layout reconstructed from ``sample_key`` and
+    ``gt_is_phishing``/``gt_brand``. Raises ``FileNotFoundError`` if neither works.
+    """
     if det.image_path and os.path.isfile(det.image_path):
         return os.path.abspath(det.image_path)
 
@@ -87,7 +89,8 @@ def resolve_image_path(det: DetectionSample, benign_root: str, phish_root: str) 
         f"sample_key='{det.sample_key}', gt_is_phishing={int(det.gt_is_phishing)}, image_path='{det.image_path}'"
     )
 
-def _inspect_detection_csv_format(path: str) -> Dict[str, object]:
+def inspect_detection_csv_format(path: str) -> Dict[str, object]:
+    """Summarize CSV shape/header information for the run log."""
     row_count = 0
     min_cols = 10**9
     max_cols = 0

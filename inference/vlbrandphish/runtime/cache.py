@@ -10,12 +10,14 @@ from typing import Any, List, Optional, Tuple
 import numpy as np
 import torch
 
-from ..data.contracts import DetectionSample
+from ..data.detection_csv import DetectionSample
 from ..components.brand.repository import BrandRepository
 from .types import PrecomputedData, QueryFeatureData
 
 
-def _hash_file_signature(path: str, h: "hashlib._Hash") -> None:
+# Input signatures deliberately use metadata, not content, so cache-key creation is fast.
+
+def hash_file_signature(path: str, h: "hashlib._Hash") -> None:
     path = os.path.abspath(str(path))
     h.update(path.encode("utf-8", errors="ignore"))
     if not os.path.isfile(path):
@@ -25,7 +27,7 @@ def _hash_file_signature(path: str, h: "hashlib._Hash") -> None:
     h.update(f":{int(stat.st_size)}:{int(stat.st_mtime_ns)}".encode("utf-8"))
 
 
-def _hash_dir_tree_signature(root: str, h: "hashlib._Hash", suffixes: Optional[Tuple[str, ...]] = None) -> None:
+def hash_dir_tree_signature(root: str, h: "hashlib._Hash", suffixes: Optional[Tuple[str, ...]] = None) -> None:
     root = os.path.abspath(str(root))
     h.update(root.encode("utf-8", errors="ignore"))
     if not os.path.isdir(root):
@@ -49,7 +51,7 @@ def _hash_dir_tree_signature(root: str, h: "hashlib._Hash", suffixes: Optional[T
                 h.update(f"F:{relative_path}:missing".encode("utf-8", errors="ignore"))
 
 
-def _build_repo_cache_key(
+def build_repository_cache_key(
     *,
     brand_ckpt: str,
     model_dir: str = "",
@@ -59,25 +61,35 @@ def _build_repo_cache_key(
     max_logo_per_brand: int,
     brand_text_mode: str,
 ) -> str:
+    """Build a content-hash key that invalidates the brand-repository cache.
+
+    The key folds in file signatures (size + mtime) of the checkpoint, model dir,
+    normal-urls CSV, the logo library image tree, and (for dbi5 mode) the prompt
+    text tree, plus the text mode and logo cap. Any change in these inputs yields
+    a different key, forcing a fresh repository build.
+    """
     h = hashlib.md5()
+    # Version the cache key whenever repository feature semantics change.
     h.update(b"repo_cache_v6_matched_domain_textmean_modeldir")
-    _hash_file_signature(brand_ckpt, h)
+    hash_file_signature(brand_ckpt, h)
     if model_dir:
-        _hash_dir_tree_signature(
+        hash_dir_tree_signature(
             model_dir,
             h,
             suffixes=(".json", ".txt", ".model", ".safetensors", ".bin"),
         )
-    _hash_file_signature(normal_urls_csv, h)
-    _hash_dir_tree_signature(logo_library_dir, h, suffixes=(".png", ".jpg", ".jpeg", ".bmp", ".webp"))
+    hash_file_signature(normal_urls_csv, h)
+    hash_dir_tree_signature(logo_library_dir, h, suffixes=(".png", ".jpg", ".jpeg", ".bmp", ".webp"))
     if str(brand_text_mode or "dbi5").strip().lower() == "dbi5":
-        _hash_dir_tree_signature(dbi5_dir, h, suffixes=(".txt",))
+        hash_dir_tree_signature(dbi5_dir, h, suffixes=(".txt",))
     h.update(f":brand_text_mode={str(brand_text_mode or 'dbi5').strip().lower()}".encode("utf-8"))
     h.update(f":max_logo_per_brand={int(max_logo_per_brand)}".encode("utf-8"))
     return h.hexdigest()[:16]
 
 
-def _save_brand_repo_cache(path: str, repo: BrandRepository) -> None:
+# Repository cache serializes CPU tensors so it can later load onto any selected device.
+
+def save_brand_repository_cache(path: str, repo: BrandRepository) -> None:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     torch.save(
         {
@@ -93,7 +105,7 @@ def _save_brand_repo_cache(path: str, repo: BrandRepository) -> None:
     )
 
 
-def _load_brand_repo_cache(path: str, device: torch.device) -> BrandRepository:
+def load_brand_repository_cache(path: str, device: torch.device) -> BrandRepository:
     payload = torch.load(os.path.abspath(path), map_location="cpu")
     if not isinstance(payload, dict):
         raise RuntimeError(f"Invalid repository cache format: {path}")
@@ -122,12 +134,14 @@ def _load_brand_repo_cache(path: str, device: torch.device) -> BrandRepository:
     )
 
 
-def _build_feature_cache_key(
+# Query and feature caches are separate: changing brand references need not re-encode screenshots.
+
+def build_feature_cache_key(
     *, det_csv: str, max_samples: int, topk: int, benign_root: str, phish_root: str, repo_cache_key: str
 ) -> str:
     h = hashlib.md5()
     h.update(b"stage2_feature_cache_v2")
-    _hash_file_signature(det_csv, h)
+    hash_file_signature(det_csv, h)
     h.update(str(os.path.abspath(benign_root)).encode("utf-8", errors="ignore"))
     h.update(str(os.path.abspath(phish_root)).encode("utf-8", errors="ignore"))
     h.update(f":max_samples={int(max_samples)}".encode("utf-8"))
@@ -136,13 +150,13 @@ def _build_feature_cache_key(
     return h.hexdigest()[:16]
 
 
-def _build_query_cache_key(
+def build_query_cache_key(
     *, brand_ckpt: str, det_csv: str, max_samples: int, topk: int, benign_root: str, phish_root: str
 ) -> str:
     h = hashlib.md5()
     h.update(b"stage2_query_cache_v2")
-    _hash_file_signature(brand_ckpt, h)
-    _hash_file_signature(det_csv, h)
+    hash_file_signature(brand_ckpt, h)
+    hash_file_signature(det_csv, h)
     h.update(str(os.path.abspath(benign_root)).encode("utf-8", errors="ignore"))
     h.update(str(os.path.abspath(phish_root)).encode("utf-8", errors="ignore"))
     h.update(f":max_samples={int(max_samples)}".encode("utf-8"))
@@ -150,7 +164,7 @@ def _build_query_cache_key(
     return h.hexdigest()[:16]
 
 
-def _save_query_cache(path: str, query_data: QueryFeatureData) -> None:
+def save_query_cache(path: str, query_data: QueryFeatureData) -> None:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     np.savez_compressed(
         os.path.abspath(path),
@@ -165,7 +179,7 @@ def _save_query_cache(path: str, query_data: QueryFeatureData) -> None:
     )
 
 
-def _load_query_cache(path: str) -> QueryFeatureData:
+def load_query_cache(path: str) -> QueryFeatureData:
     archive = np.load(os.path.abspath(path), allow_pickle=True)
     stats = json.loads(str(np.asarray(archive["resolve_stats_json"], dtype=object).reshape(-1)[0]))
     if not isinstance(stats, dict):
@@ -187,7 +201,7 @@ def _load_query_cache(path: str) -> QueryFeatureData:
     )
 
 
-def _truncate_detections_topk(detections: List[DetectionSample], topk: int) -> List[DetectionSample]:
+def truncate_detections_topk(detections: List[DetectionSample], topk: int) -> List[DetectionSample]:
     if int(topk) <= 0:
         return detections
     return [
@@ -204,7 +218,7 @@ def _truncate_detections_topk(detections: List[DetectionSample], topk: int) -> L
     ]
 
 
-def _slice_query_data_topk(query_data: QueryFeatureData, topk: int) -> QueryFeatureData:
+def slice_query_data_topk(query_data: QueryFeatureData, topk: int) -> QueryFeatureData:
     if int(topk) <= 0:
         return query_data
     if query_data.query_feat.ndim != 3 or query_data.query_mask.ndim != 2:
@@ -226,7 +240,13 @@ def _slice_query_data_topk(query_data: QueryFeatureData, topk: int) -> QueryFeat
     )
 
 
-def _find_compatible_query_cache(*, cache_dir: str, n_samples: int, topk: int) -> Tuple[str, Optional[QueryFeatureData]]:
+def find_compatible_query_cache(*, cache_dir: str, n_samples: int, topk: int) -> Tuple[str, Optional[QueryFeatureData]]:
+    """Search the cache dir for a query cache with the same sample count and a topk >= requested.
+
+    Allows reusing a previously saved query cache when only the ``--topk`` argument
+    shrank, avoiding a costly re-encode of all screenshots. The caller slices the
+    found cache down to the requested topk via :func:`slice_query_data_topk`.
+    """
     try:
         paths = sorted(
             os.path.join(os.path.abspath(cache_dir), filename)
@@ -239,7 +259,7 @@ def _find_compatible_query_cache(*, cache_dir: str, n_samples: int, topk: int) -
     candidates: List[Tuple[int, str, QueryFeatureData]] = []
     for path in paths:
         try:
-            query_data = _load_query_cache(path)
+            query_data = load_query_cache(path)
         except Exception:
             continue
         if query_data.query_feat.ndim != 3 or query_data.query_mask.ndim != 2:
@@ -252,12 +272,12 @@ def _find_compatible_query_cache(*, cache_dir: str, n_samples: int, topk: int) -
         candidates.append((cached_topk, path, query_data))
     if not candidates:
         return "", None
-    candidates.sort(key=lambda item: (int(item[0]), str(item[1]).lower()))
+
     _, path, query_data = candidates[0]
     return str(path), query_data
 
 
-def _save_precomputed_cache(path: str, precomputed: PrecomputedData) -> None:
+def save_precomputed_cache(path: str, precomputed: PrecomputedData) -> None:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     np.savez_compressed(
         os.path.abspath(path),
@@ -273,7 +293,7 @@ def _save_precomputed_cache(path: str, precomputed: PrecomputedData) -> None:
     )
 
 
-def _load_precomputed_cache(path: str) -> PrecomputedData:
+def load_precomputed_cache(path: str) -> PrecomputedData:
     archive = np.load(os.path.abspath(path), allow_pickle=True)
     stats = json.loads(str(np.asarray(archive["resolve_stats_json"], dtype=object).reshape(-1)[0]))
     if not isinstance(stats, dict):

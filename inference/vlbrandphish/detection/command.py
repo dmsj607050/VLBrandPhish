@@ -1,3 +1,5 @@
+"""Provide the Stage-1 logo-detection command without importing MMDetection at module import time."""
+
 from __future__ import annotations
 
 import argparse
@@ -6,20 +8,10 @@ import time
 from typing import List, Tuple
 
 from ..runtime.paths import default_run_dir, resolve_default_paths
-from ..data.contracts import DetectionSample, write_detection_top3_csv
-from ..data.dataset import TestBSample, load_testb_samples
+from ..data.detection_csv import DetectionSample, write_detection_top3_csv
+from ..data.testb_dataset import TestBSample, load_testb_samples
+from ..runtime.progress import iter_with_progress
 
-try:
-    from tqdm import tqdm
-except Exception:
-    tqdm = None
-
-
-def _iter_items(items: List[TestBSample], progress: bool):
-    if progress and tqdm is not None:
-        yield from tqdm(items, desc="logo_detection")
-        return
-    yield from items
 
 
 def _to_detection_row(
@@ -40,6 +32,7 @@ def _to_detection_row(
 
 
 def main() -> None:
+    """Run Stage 1 and write a detector-independent Top-3 CSV for Stage 2."""
     defaults = resolve_default_paths(__file__)
     parser = argparse.ArgumentParser(description="Generate top-k logo detections for Test-B.")
     parser.add_argument("--det-config", type=str, required=True, help="MMDetection config path.")
@@ -84,7 +77,7 @@ def main() -> None:
 
     t0 = time.perf_counter()
     det_rows: List[DetectionSample] = []
-    for sample in _iter_items(samples, progress=bool(args.progress)):
+    for sample in iter_with_progress(samples, description="logo_detection", enabled=bool(args.progress)):
         dets = detector.detect_topk(
             image_path=sample.image_path,
             score_thr=float(args.det_score_thr),

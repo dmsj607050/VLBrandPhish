@@ -8,6 +8,7 @@ from typing import Dict, List
 
 @dataclass
 class Metrics:
+    """Confusion-matrix counts and brand accuracy for one evaluated split."""
     tp: int = 0
     tn: int = 0
     fp: int = 0
@@ -42,6 +43,7 @@ class Metrics:
 
 @dataclass
 class PrecomputedData:
+    """Brand similarities and labels after crop features have been scored."""
     sim_img: np.ndarray
     sim_txt: np.ndarray
     router_alpha: np.ndarray
@@ -55,6 +57,7 @@ class PrecomputedData:
 
 @dataclass
 class QueryFeatureData:
+    """Encoded detector crops and path-resolution diagnostics before brand scoring."""
     query_feat: np.ndarray
     route_weights: np.ndarray
     query_mask: np.ndarray
@@ -67,6 +70,7 @@ class QueryFeatureData:
 
 @dataclass
 class AlphaOutput:
+    """Fused brand predictions plus the domain-gate evidence for every sample."""
     fusion_method: str
     alpha: float
     gate_k: float

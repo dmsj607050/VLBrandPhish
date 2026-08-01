@@ -14,7 +14,7 @@ Stage 1: detection/command.py
 outputs/.../logo_detection_top3.csv
         |
         v
-Stage 2: pipeline/cli.py
+Stage 2: run.py
   data/ -> recognition/ -> decision/ -> evaluation/
         |
         v
@@ -31,7 +31,7 @@ predictions.csv + metrics.json + summary.json + run metadata
 | `decision/` | Checks predicted brand against URL/domain evidence | predicted brand and screenshot URL | brand/domain acceptance signal |
 | `evaluation/` | Applies thresholds and writes sample-, brand-, and aggregate metrics | similarities, labels, decisions | predictions and metric reports |
 | `runtime/` | Owns only paths, cache keys/files, and typed intermediate records | command arguments | reusable caches and deterministic paths |
-| `pipeline/` | Wires the modules above without reimplementing them | all explicit Stage-2 inputs | a complete inference run directory |
+| `run.py` | Wires the modules above without reimplementing them | all explicit Stage-2 inputs | a complete inference run directory |
 
 ## Commands
 
@@ -68,6 +68,14 @@ resulting CSV to Stage 2 with `--max-samples 2`. Stage 1 requires a compatible
 MMDetection environment; Stage 2 requires PyTorch, Transformers, and SentencePiece.
 Do not enable `--grid-search` on a reported test split unless the threshold-selection
 protocol is explicitly documented.
+
+## One-click Windows runner
+
+For a local Windows run, copy `inference/vlbrandphish/run_e2e.local.example.bat` to
+`run_e2e.local.bat`, set the model/data paths and Conda environment names once, then
+double-click `run_e2e.bat`. The local configuration is ignored by Git. The default
+`RUN_MODE=smoke` runs one benign and one phishing sample; use `RUN_MODE=full` only after
+the smoke run succeeds.
 
 ## Output contract
 

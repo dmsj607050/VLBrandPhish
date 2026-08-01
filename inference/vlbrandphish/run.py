@@ -1,142 +1,59 @@
+"""Run Stage 2: brand retrieval, domain verification, and evaluation from a detection CSV."""
+
 from __future__ import annotations
 
 import argparse
 import csv
-import hashlib
 import json
 import os
 import time
 import warnings
-from collections import Counter
 from dataclasses import asdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
-import torch
-from PIL import Image
 
-from ..runtime.paths import default_run_dir, resolve_default_paths
-from ..components.brand.naming import normalize_brand_key
-from ..data.contracts import DetectionSample, read_detection_top3_csv
-from ..decision.domain import phishintention_domain_accept, registered_domain
-from ..components.brand.encoders import CLIPEncoder
-from ..components.brand.repository import BrandRepository, build_brand_repository, score_query_features
-from ..runtime.types import AlphaOutput, Metrics, PrecomputedData, QueryFeatureData
-from ..recognition.features import (
-    _compute_alpha_output,
-    _compute_similarity_from_query_features,
-    _precompute_query_features,
+from .runtime.paths import default_run_dir, resolve_default_paths
+from .components.brand.naming import normalize_brand_key
+from .data.detection_csv import read_detection_top3_csv
+from .decision.domain import phishintention_domain_accept, registered_domain
+from .runtime.types import AlphaOutput, Metrics, PrecomputedData, QueryFeatureData
+from .recognition.features import (
+    compute_alpha_output,
+    compute_similarity_from_query_features,
+    precompute_query_features,
 )
-from ..evaluation.metrics import (
-    _build_brand_level_reports,
-    _build_prediction_rows,
-    _evaluate_threshold,
-    _objective_value,
-    _parse_grid_values,
+from .evaluation.metrics import (
+    build_brand_level_reports,
+    build_prediction_rows,
+    evaluate_threshold,
+    objective_value,
+    parse_grid_values,
 )
-from ..data.image_paths import _inspect_detection_csv_format, _iter_items
-from ..recognition.resources import load_brand_resources
-
-try:
-    from tqdm import tqdm
-except Exception:
-    tqdm = None
+from .data.image_paths import inspect_detection_csv_format
+from .runtime.diagnostics import print_runtime_format_info
+from .runtime.progress import iter_with_progress
+from .recognition.resources import load_brand_resources
 
 
-# Cache serialization and signatures are maintained in their own module. The
-# aliases retain the existing internal call surface while downstream scripts
-# migrate to ``inference.cache`` directly.
-from ..runtime.cache import (
-    _build_feature_cache_key,
-    _build_query_cache_key,
-    _build_repo_cache_key,
-    _find_compatible_query_cache,
-    _hash_dir_tree_signature,
-    _hash_file_signature,
-    _load_brand_repo_cache,
-    _load_precomputed_cache,
-    _load_query_cache,
-    _save_brand_repo_cache,
-    _save_precomputed_cache,
-    _save_query_cache,
-    _slice_query_data_topk,
-    _truncate_detections_topk,
+# Cache construction and serialization are isolated from orchestration.
+
+from .runtime.cache import (
+    build_feature_cache_key,
+    build_query_cache_key,
+    find_compatible_query_cache,
+    load_precomputed_cache,
+    load_query_cache,
+    save_precomputed_cache,
+    save_query_cache,
+    slice_query_data_topk,
+    truncate_detections_topk,
 )
 
-
-def _print_runtime_format_info(
-    *,
-    det_csv: str,
-    csv_info: Dict[str, object],
-    detections: List[DetectionSample],
-    repo: BrandRepository,
-    args: argparse.Namespace,
-    alpha_grid: List[float],
-    gate_k_grid: List[float],
-    gate_b_grid: List[float],
-    n_fusion_candidates: int,
-    threshold_grid: List[float],
-) -> None:
-    n = len(detections)
-    n_phish = sum(1 for d in detections if bool(d.gt_is_phishing))
-    n_benign = int(n - n_phish)
-    n_has_logo = sum(1 for d in detections if len(d.bboxes) > 0)
-    n_box1 = sum(1 for d in detections if len(d.bboxes) >= 1)
-    n_box2 = sum(1 for d in detections if len(d.bboxes) >= 2)
-    n_box3 = sum(1 for d in detections if len(d.bboxes) >= 3)
-    n_empty_url = sum(1 for d in detections if not str(d.url or "").strip())
-
-    logo_count_per_brand = repo.logo_mask.to(dtype=torch.int32).sum(dim=1).detach().cpu().numpy().tolist()
-    text_count_per_brand = repo.text_mask.to(dtype=torch.int32).sum(dim=1).detach().cpu().numpy().tolist()
-    avg_logo_per_brand = float(sum(int(x) for x in logo_count_per_brand) / max(1, len(logo_count_per_brand)))
-    avg_text_per_brand = float(sum(int(x) for x in text_count_per_brand) / max(1, len(text_count_per_brand)))
-
-    print("[format] ===== Runtime Format Info =====")
-    print(f"[format] det_csv={det_csv}")
-    print(
-        "[format] csv_structure: "
-        f"rows={int(csv_info.get('row_count', 0))} "
-        f"has_header={int(bool(csv_info.get('has_header', False)))} "
-        f"first_row_ncols={int(csv_info.get('first_row_ncols', 0))} "
-        f"min_cols={int(csv_info.get('min_cols', 0))} "
-        f"max_cols={int(csv_info.get('max_cols', 0))}"
-    )
-    print(f"[format] csv_first_row_preview={csv_info.get('first_row_preview', [])}")
-    print(
-        "[format] samples_after_max_samples: "
-        f"n={n} benign={n_benign} phish={n_phish} "
-        f"has_logo={n_has_logo} box1={n_box1} box2={n_box2} box3={n_box3} "
-        f"empty_url={n_empty_url}"
-    )
-    print(
-        "[format] repository: "
-        f"brands={len(repo.brand_names)} "
-        f"logo_emb_shape={tuple(repo.logo_emb.shape)} "
-        f"text_emb_shape={tuple(repo.text_emb.shape)} "
-        f"avg_logo_per_brand={avg_logo_per_brand:.2f} "
-        f"avg_text_per_brand={avg_text_per_brand:.2f}"
-    )
-    print(
-        "[format] run_config: "
-        f"fusion_method={str(args.fusion_method)} "
-        f"alpha={float(args.alpha):.4f} "
-        f"gate_k={float(args.gate_k):.4f} gate_b={float(args.gate_b):.4f} "
-        f"threshold={float(args.threshold):.4f} "
-        f"max_logo_per_brand={int(args.max_logo_per_brand)} "
-        f"image_batch_size={int(args.image_batch_size)} "
-        f"text_batch_size={int(args.text_batch_size)} "
-        f"device={str(args.device)} progress={int(bool(args.progress))}"
-    )
-    print(
-        "[format] search_config: "
-        f"grid_search={int(bool(args.grid_search))} objective={str(args.grid_objective)} "
-        f"n_alpha={len(alpha_grid)} n_gate_k={len(gate_k_grid)} n_gate_b={len(gate_b_grid)} "
-        f"n_fusion_candidates={int(n_fusion_candidates)} n_threshold={len(threshold_grid)}"
-    )
-    print("[format] =================================")
 
 
 def main() -> None:
+    """Parse Stage-2 options, run retrieval/decision, and write reproducible reports."""
     warnings.filterwarnings(
         "ignore",
         message=r".*Torch was not compiled with flash attention.*",
@@ -211,6 +128,7 @@ def main() -> None:
     parser.set_defaults(progress=True)
     args = parser.parse_args()
 
+    # Create output paths before loading models or input data.
     out_dir = str(args.out_dir).strip()
     if not out_dir:
         out_dir = default_run_dir(str(args.out_base_dir), "inference")
@@ -219,14 +137,16 @@ def main() -> None:
     cache_dir = os.path.abspath(str(args.cache_dir))
     os.makedirs(cache_dir, exist_ok=True)
 
+
     det_csv = os.path.abspath(args.det_csv)
-    csv_info = _inspect_detection_csv_format(det_csv)
+    csv_info = inspect_detection_csv_format(det_csv)
     detections = read_detection_top3_csv(det_csv)
     if int(args.max_samples) > 0:
         detections = detections[: int(args.max_samples)]
-    detections = _truncate_detections_topk(detections, int(args.topk))
+    detections = truncate_detections_topk(detections, int(args.topk))
     print(f"[inference] loaded detections={len(detections)} from {det_csv}")
 
+    # Create output paths before loading models or input data.
     brand_ckpt_abs = os.path.abspath(args.brand_ckpt)
     logo_library_dir_abs = os.path.abspath(args.logo_library_dir)
     dbi5_dir_abs = os.path.abspath(args.dbi5_dir)
@@ -248,17 +168,20 @@ def main() -> None:
         use_repository_cache=not bool(args.no_repo_cache),
         rebuild_repository_cache=bool(args.rebuild_repo_cache),
     )
+
     if bool(args.grid_search):
-        alpha_grid = _parse_grid_values(str(args.alpha_grid), fallback=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
-        gate_k_grid = _parse_grid_values(str(args.gate_k_grid), fallback=[0.0, 1.0, 2.0, 5.0])
-        gate_b_grid = _parse_grid_values(str(args.gate_b_grid), fallback=[-2.0, -1.0, 0.0, 1.0])
-        threshold_grid = _parse_grid_values(str(args.threshold_grid), fallback=[round(0.40 + 0.01 * i, 2) for i in range(51)])
+        alpha_grid = parse_grid_values(str(args.alpha_grid), fallback=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+        gate_k_grid = parse_grid_values(str(args.gate_k_grid), fallback=[0.0, 1.0, 2.0, 5.0])
+        gate_b_grid = parse_grid_values(str(args.gate_b_grid), fallback=[-2.0, -1.0, 0.0, 1.0])
+        threshold_grid = parse_grid_values(str(args.threshold_grid), fallback=[round(0.40 + 0.01 * i, 2) for i in range(51)])
     else:
         alpha_grid = [float(args.alpha)]
         gate_k_grid = [float(args.gate_k)]
         gate_b_grid = [float(args.gate_b)]
         threshold_grid = [float(args.threshold)]
 
+
+    # Select only the parameters used by the requested fusion policy.
     if str(args.fusion_method) == "dynamic_margin_gate":
         fusion_candidates = [
             {
@@ -293,7 +216,7 @@ def main() -> None:
     if not fusion_candidates:
         raise RuntimeError("No valid fusion candidates built from current search configuration.")
 
-    _print_runtime_format_info(
+    print_runtime_format_info(
         det_csv=det_csv,
         csv_info=csv_info,
         detections=detections,
@@ -306,8 +229,9 @@ def main() -> None:
         threshold_grid=threshold_grid,
     )
 
-    t2 = time.perf_counter()
-    query_cache_key = _build_query_cache_key(
+    # Create output paths before loading models or input data.
+
+    query_cache_key = build_query_cache_key(
         brand_ckpt=brand_ckpt_abs,
         det_csv=det_csv,
         max_samples=int(args.max_samples),
@@ -320,7 +244,7 @@ def main() -> None:
     query_time = 0.0
     sim_from_query_time = 0.0
 
-    feature_cache_key = _build_feature_cache_key(
+    feature_cache_key = build_feature_cache_key(
         det_csv=det_csv,
         max_samples=int(args.max_samples),
         topk=int(args.topk),
@@ -331,9 +255,11 @@ def main() -> None:
     feature_cache_path = os.path.join(cache_dir, f"stage2_precompute_{feature_cache_key}.npz")
     feature_cache_hit = False
     pre: Optional[PrecomputedData] = None
+    # Time the feature-cache lookup or full query-feature computation as one stage.
+    t2 = time.perf_counter()
     if (not bool(args.no_feature_cache)) and (not bool(args.rebuild_feature_cache)) and os.path.isfile(feature_cache_path):
         try:
-            pre = _load_precomputed_cache(feature_cache_path)
+            pre = load_precomputed_cache(feature_cache_path)
             feature_cache_hit = True
             print(f"[cache] stage2_feature hit: {feature_cache_path}")
         except Exception as e:
@@ -344,30 +270,30 @@ def main() -> None:
         tq = time.perf_counter()
         if (not bool(args.no_query_cache)) and (not bool(args.rebuild_query_cache)) and os.path.isfile(query_cache_path):
             try:
-                query_data = _load_query_cache(query_cache_path)
+                query_data = load_query_cache(query_cache_path)
                 query_cache_hit = True
                 print(f"[cache] stage2_query hit: {query_cache_path}")
             except Exception as e:
                 print(f"[cache] stage2_query load failed, recomputing: {type(e).__name__}: {e}")
 
         if query_data is None and (not bool(args.no_query_cache)) and (not bool(args.rebuild_query_cache)):
-            compat_path, compat_query = _find_compatible_query_cache(
+            compat_path, compat_query = find_compatible_query_cache(
                 cache_dir=cache_dir,
                 n_samples=len(detections),
                 topk=max(1, int(args.topk)),
             )
             if compat_query is not None:
-                query_data = _slice_query_data_topk(compat_query, int(args.topk))
+                query_data = slice_query_data_topk(compat_query, int(args.topk))
                 query_cache_hit = True
                 print(f"[cache] stage2_query compatible hit: {compat_path}")
                 try:
-                    _save_query_cache(query_cache_path, query_data)
+                    save_query_cache(query_cache_path, query_data)
                     print(f"[cache] stage2_query promoted: {query_cache_path}")
                 except Exception as e:
                     print(f"[cache] stage2_query promote failed: {type(e).__name__}: {e}")
 
         if query_data is None:
-            query_data = _precompute_query_features(
+            query_data = precompute_query_features(
                 detections=detections,
                 encoder=encoder,
                 benign_root=benign_root_abs,
@@ -376,14 +302,14 @@ def main() -> None:
             )
             if not bool(args.no_query_cache):
                 try:
-                    _save_query_cache(query_cache_path, query_data)
+                    save_query_cache(query_cache_path, query_data)
                     print(f"[cache] stage2_query saved: {query_cache_path}")
                 except Exception as e:
                     print(f"[cache] stage2_query save failed: {type(e).__name__}: {e}")
         query_time = time.perf_counter() - tq
 
         ts = time.perf_counter()
-        pre = _compute_similarity_from_query_features(
+        pre = compute_similarity_from_query_features(
             query_data=query_data,
             repo=repo,
             progress=bool(args.progress),
@@ -392,7 +318,7 @@ def main() -> None:
 
         if not bool(args.no_feature_cache):
             try:
-                _save_precomputed_cache(feature_cache_path, pre)
+                save_precomputed_cache(feature_cache_path, pre)
                 print(f"[cache] stage2_feature saved: {feature_cache_path}")
             except Exception as e:
                 print(f"[cache] stage2_feature save failed: {type(e).__name__}: {e}")
@@ -408,6 +334,7 @@ def main() -> None:
         f"sim_sec={float(sim_from_query_time):.2f}"
     )
 
+
     search_records: List[Dict[str, object]] = []
     best_obj = -1.0
     best_alpha = float(fusion_candidates[0]["alpha"])
@@ -420,10 +347,10 @@ def main() -> None:
     best_pred_vec: Optional[np.ndarray] = None
     screenshot_urls = [str(d.url or "") for d in detections]
 
-    fusion_iter = _iter_items(fusion_candidates, desc="grid_fusion", enabled=bool(args.progress))
+    fusion_iter = iter_with_progress(fusion_candidates, description="grid_fusion", enabled=bool(args.progress))
     search_t0 = time.perf_counter()
     for cand in fusion_iter:
-        alpha_out = _compute_alpha_output(
+        alpha_out = compute_alpha_output(
             fusion_method=str(cand["fusion_method"]),
             alpha=float(cand["alpha"]),
             gate_k=float(cand["gate_k"]),
@@ -433,8 +360,8 @@ def main() -> None:
             screenshot_urls=screenshot_urls,
         )
         for threshold in threshold_grid:
-            metrics, pred_vec = _evaluate_threshold(pre=pre, alpha_out=alpha_out, threshold=float(threshold))
-            obj = _objective_value(metrics, objective=str(args.grid_objective))
+            metrics, pred_vec = evaluate_threshold(pre=pre, alpha_out=alpha_out, threshold=float(threshold))
+            obj = objective_value(metrics, objective=str(args.grid_objective))
             m = metrics.to_dict()
             search_records.append(
                 {
@@ -465,7 +392,8 @@ def main() -> None:
     if best_alpha_out is None or best_pred_vec is None:
         raise RuntimeError("Search produced no valid result")
 
-    rows = _build_prediction_rows(
+
+    rows = build_prediction_rows(
         detections=detections,
         pre=pre,
         alpha_out=best_alpha_out,
@@ -481,7 +409,7 @@ def main() -> None:
         for r in rows:
             writer.writerow(r)
 
-    brand_level_rows, brand_level_overview = _build_brand_level_reports(
+    brand_level_rows, brand_level_overview = build_brand_level_reports(
         rows=rows,
         threshold=float(best_threshold),
     )
@@ -534,7 +462,7 @@ def main() -> None:
             "best_gate_k": float(best_gate_k),
             "best_gate_b": float(best_gate_b),
             "best_threshold": float(best_threshold),
-            "best_objective_value": float(best_obj),
+            "bestobjective_value": float(best_obj),
             "n_alpha": int(len(alpha_grid)),
             "n_gate_k": int(len(gate_k_grid)),
             "n_gate_b": int(len(gate_b_grid)),

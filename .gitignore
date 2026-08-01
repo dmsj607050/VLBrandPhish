@@ -51,3 +51,6 @@ Thumbs.db
 .vscode/
 wandb/
 mlruns/
+
+# Machine-specific one-click runner configuration
+inference/vlbrandphish/run_e2e.local.bat

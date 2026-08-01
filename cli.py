@@ -41,7 +41,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     if command == "detect":
         from inference.vlbrandphish.detection.command import main as command_main
     elif command == "infer":
-        from inference.vlbrandphish.pipeline import main as command_main
+        from inference.vlbrandphish.run import main as command_main
     elif command == "train-brand":
         from training.vlbrandphish.brand_recognition.cli import main as command_main
     else:

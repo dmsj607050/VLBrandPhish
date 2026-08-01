@@ -1,3 +1,5 @@
+"""Load a checkpoint-compatible CLIP or SigLIP encoder for brand matching."""
+
 from __future__ import annotations
 
 import os
@@ -22,6 +24,7 @@ def _is_valid_hf_model_dir(path: str) -> bool:
 
 
 def _resolve_siglip_model_dir(model_name: str, *, ckpt_path: str, model_dir: str = "") -> str:
+    # Model directory precedence: explicit --model-dir, checkpoint metadata, then a local sibling directory.
     explicit_dir = str(model_dir or "").strip()
     if explicit_dir:
         if not _is_valid_hf_model_dir(explicit_dir):
@@ -60,6 +63,7 @@ def _resolve_siglip_model_dir(model_name: str, *, ckpt_path: str, model_dir: str
 
 
 class CLIPEncoder:
+    """Encode logo crops and prompts using the checkpoint-selected CLIP-family backend."""
     def __init__(self, ckpt_path: str, device: str = "cuda:0", model_dir: str = "") -> None:
         self.device = torch.device(device if str(device).startswith("cuda") and torch.cuda.is_available() else "cpu")
         self.backend = "clip"
@@ -170,6 +174,7 @@ class CLIPEncoder:
             self.adapter = adapter.float().eval()
         if "router_state" in ckpt:
             router_state = ckpt["router_state"]
+            # Infer router dimensions from the checkpoint so 2- and 3-branch variants remain compatible.
             stats_dim = 2
             out_dim = 3
             try:
@@ -229,6 +234,11 @@ class CLIPEncoder:
         return feat
 
     def encode_query_images(self, images: Sequence[Image.Image], batch_size: int = 64) -> torch.Tensor:
+        """Encode query-side logo crops, applying the residual adapter when available.
+
+        Differs from :meth:`encode_images` in that the adapter (if loaded) is applied
+        to query crops so the router sees adapted features consistent with training.
+        """
         if not images:
             return torch.empty((0, self.embed_dim), dtype=torch.float32, device=self.device)
         if self.backend != "siglip":
@@ -264,19 +274,28 @@ class CLIPEncoder:
         return torch.cat(out, dim=0)
 
     def route_weights_from_query_features(self, query_features: torch.Tensor) -> torch.Tensor:
+        """Produce per-crop branch weights (image/text/ocr) from query features.
+
+        Returns a ``[N, 3]`` tensor. When no router is available, fall back to a
+        uniform ``1/3`` distribution. Legacy 2-branch routers are padded into the
+        3-column shape expected by downstream consumers.
+        """
         n = int(query_features.shape[0]) if query_features.ndim >= 1 else 0
         if n <= 0:
             return torch.empty((0, 3), dtype=torch.float32, device=self.device)
         if self.backend != "siglip" or self.router is None:
+            # A model without a trained router uses uniform image/text/OCR branch weights.
             return torch.full((n, 3), 1.0 / 3.0, dtype=torch.float32, device=self.device)
         with torch.no_grad():
             q = query_features.to(self.device).float()
             if int(getattr(self, "router_out_dim", 3)) == 2:
+                # Pad legacy two-branch router outputs to the common three-branch interface.
                 stats_dim = int(getattr(self, "router_stats_dim", 6))
                 branch_stats = torch.zeros((n, stats_dim), dtype=torch.float32, device=self.device)
                 weights2 = self.router(q, branch_stats=branch_stats)
                 weights3 = torch.zeros((n, 3), dtype=torch.float32, device=self.device)
                 weights3[:, 0:2] = weights2
                 return weights3
+            # Inference has no OCR branch yet; explicitly mark it unavailable for the 3-branch router.
             ocr_available = torch.zeros((n,), dtype=torch.bool, device=self.device)
             return self.router(q, ocr_available=ocr_available)

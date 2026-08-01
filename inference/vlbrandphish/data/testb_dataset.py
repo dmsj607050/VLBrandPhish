@@ -1,3 +1,5 @@
+"""Discover well-formed Test-B samples without embedding detector or recognizer logic."""
+
 from __future__ import annotations
 
 import json
@@ -8,6 +10,7 @@ from typing import Dict, List, Optional
 
 @dataclass
 class TestBSample:
+    """A resolved screenshot and URL/label metadata from the Test-B layout."""
     image_path: str
     url: str
     gt_is_phishing: bool
@@ -33,6 +36,7 @@ def load_testb_samples(
     max_benign: int = -1,
     max_phish: int = -1,
 ) -> List[TestBSample]:
+    """Load benign and phishing screenshots from the documented Test-B layout."""
     valid_roots = [
         str(root)
         for root in (benign_root, phish_root)

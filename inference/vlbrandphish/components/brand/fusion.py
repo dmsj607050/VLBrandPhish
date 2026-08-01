@@ -67,6 +67,7 @@ class LogoTypeRouter(nn.Module):
         )
         weights = functional.softmax(self.net(features), dim=-1)
         if (~ocr_available).any():
+            # Redistribute unavailable OCR weight to image and text while retaining a valid distribution.
             redistributed = weights.clone()
             missing = ~ocr_available
             redistributed[missing, 0] += weights[missing, 2] * 0.4
