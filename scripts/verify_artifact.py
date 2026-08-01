@@ -20,8 +20,17 @@ REQUIRED_FILES = (
     "pyproject.toml",
     "requirements.txt",
     "docs/REPRODUCIBILITY.md",
+    "docs/EXPERIMENTS.md",
     "docs/DATA_AND_MODELS.md",
     "docs/USENIX_SECURITY_2027_READINESS.md",
+)
+REQUIRED_PATHS = (
+    "cli.py",
+    "inference",
+    "training",
+    "experiments",
+    "training/vlbrandphish/brand_recognition/configs/stage1_siglip.yaml",
+    "training/vlbrandphish/brand_recognition/configs/stage2_trisig_ot_safe.yaml",
 )
 LOCAL_ONLY_ALLOWLIST = {
     "data/.gitkeep",
@@ -79,9 +88,7 @@ def _scan_bytes(path: Path) -> Iterable[str]:
 
 
 def _is_allowed_under_local_only(relative: str) -> bool:
-    """A tracked file under data/models/outputs is allowed if it is a placeholder
-    (.gitkeep), a README, or (under data/) a dataset documentation markdown file.
-    Actual data, screenshots, and weight files must not be tracked."""
+    """Allow only documentation and explicit placeholders under local-artifact roots."""
     name = relative.rsplit("/", 1)[-1]
     if name in {".gitkeep", "README.md"}:
         return True
@@ -95,6 +102,10 @@ def verify(root: Path) -> list[str]:
     for required in REQUIRED_FILES:
         if not (root / required).is_file():
             failures.append(f"missing required release document: {required}")
+
+    for required in REQUIRED_PATHS:
+        if not (root / required).exists():
+            failures.append(f"missing required source path: {required}")
 
     for path in _tracked_files(root):
         if not path.is_file():
@@ -122,7 +133,7 @@ def main() -> int:
         for failure in failures:
             print(f"- {failure}")
         return 1
-    print("Artifact check passed: required documents exist and no basic tracked-file hazards were found.")
+    print("Artifact check passed: required documents and source layout exist with no basic tracked-file hazards.")
     return 0
 
 

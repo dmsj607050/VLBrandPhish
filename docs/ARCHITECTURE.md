@@ -1,54 +1,67 @@
 # Architecture review and design decisions
 
-This document records the source-layout review used for the public VLBrandPhish release. It compares structural patterns in the local PhishIntention and PhishPedia reference implementations; it is an engineering review, not a comparison of research results.
+This document records the source-layout review used for the public VLBrandPhish release.
+It compares structural patterns in the local PhishIntention and PhishPedia reference
+implementations; it is an engineering review, not a comparison of research results.
 
-## What VLBrandPhish adopts
+## Reader-first layout
 
-PhishIntention and PhishPedia each keep their core research path easy to locate: logo detection, brand/reference matching, and the final wrapper are visibly separated. VLBrandPhish follows that reader journey directly: each method's inference pipeline lives under `inference/<method>/`, training lives under `training/vlbrandphish/`, and experiments are thin runners under `experiments/` that call shared inference code and load shared model weights.
+The repository is organized around the paths a reader follows when reproducing a result:
+method-specific inference under `inference/<method>/`, VLBrandPhish training under
+`training/vlbrandphish/`, and paper-oriented analyses under `experiments/`. The root
+command is `python cli.py`; the source tree is intentionally flat rather than an
+installable package.
 
-The repository is organized around the paper's experiments rather than around a single Python package. Code is grouped by method (high cohesion within `inference/<method>/`) and experiments only adapt and orchestrate (low coupling: an experiment directory never re-implements method logic).
+Reusable VLBrandPhish model code lives in
+`inference/vlbrandphish/components/brand/`. It is intentionally narrow: training and
+inference may import it, while experiments must not become a dependency of production
+code.
 
-## Problems intentionally avoided
+## Decisions
 
 | Risk in a research codebase | VLBrandPhish decision |
 | --- | --- |
-| Experiments that duplicate or fork method logic | Experiments under `experiments/` only call `inference/<method>/` and load `models/<method>/`; they contain only experiment-specific adaptation code. |
-| A wrapper that loads models, writes caches, parses CLI arguments, and renders results in one global configuration flow | Runtime components own their own inputs; the public CLI dispatches to explicit commands. |
-| A wide positional tuple used as an implicit system configuration | Paths are a named `DefaultPaths` dataclass; record and result structures are dataclasses. |
-| Experiment-specific assumptions inside the production path | Prompt ablations, protocol comparisons, diagnostics, paper figures, and data preparation live in `experiments/`. |
-| Cache files written into source or brand-library directories | Cache locations are explicit command inputs and default under ignored output/cache locations. |
-| Duplicate model components in training and inference | `components/brand/fusion.py` owns the shared residual adapter and logo-type router. |
-| Hard dependency on a sibling research repository | Domain policy contains a local, documented implementation and does not load another repository at runtime. |
-| Training tools outside the package with separate import conventions | Logo-detector and brand-recognizer training now reside under `training/logo_detection/` and `training/brand_recognition/`. |
+| Experiments that duplicate method logic | Implemented experiment tools consume saved inference artifacts or public interfaces. Study scaffolds do not claim to be completed evaluators. |
+| A wrapper that mixes model loading, cache writes, CLI parsing, and figure rendering | Runtime modules own their inputs; the root CLI dispatches to explicit workflow commands. |
+| A wide positional tuple used as implicit configuration | Paths use a named `DefaultPaths` dataclass; record and result structures are dataclasses. |
+| Experiment-specific assumptions in production code | Prompt ablations, protocol comparisons, diagnostics, figures, and data preparation live under `experiments/`. |
+| Cache files written into source or brand-library folders | Cache locations are explicit command inputs and default under ignored output/cache locations. |
+| Duplicate VLBrandPhish model components | `inference/vlbrandphish/components/brand/` owns the shared encoder, fusion, repository, and naming pieces. |
+| A hidden dependency on a sibling research repository | The public runtime resolves local data/model paths and does not import sibling repositories at runtime. |
+| A study script reporting success with missing methods | Incomplete study runners raise `ExperimentImplementationRequired` before creating output folders. |
 
-## Package boundaries
+## Dependency boundaries
 
 ```text
-training/logo_detection  --> components/brand
-training/brand_recognition/stage1  --\
-training/brand_recognition/stage2  ---+--> components/brand
+training/vlbrandphish/logo_detection  --> inference/vlbrandphish/components/brand
+training/vlbrandphish/brand_recognition/stage1  --\
+training/vlbrandphish/brand_recognition/stage2  ---+--> inference/vlbrandphish/components/brand
 
-inference/data_loader --> inference/logo_detection --> inference/brand_recognition
-                                                        |
-                                                        v
-                                     inference/domain_verification --> inference/evaluation
-                                                        |
-                                                        v
-                                               inference/pipeline
+inference/vlbrandphish/input_loading --> logo_detection --> brand_recognition
+                                                          |
+                                                          v
+                                           domain_verification --> evaluation
+                                                          |
+                                                          v
+                                                       pipeline
+
+experiments/* --> public training/inference interfaces or saved output artifacts
 ```
 
-`components/brand/` is the only shared model layer. The arrows express allowed dependency direction: training and inference may depend on components; inference must not import training; runtime modules must not import experiments or annotation tooling.
-## Naming rules
+The arrows express allowed dependency direction. In particular, production inference and
+training code must not import experiments, figures, or annotation tools.
 
-- Production modules use a responsibility name: `runner`, `repository`, `domains`, `policy`, or `encoders`.
-- Terms such as `stage1`, `stage2`, dataset protocol names, and paper table labels are retained only where they describe external artifacts or experimental outputs.
-- A compatibility script may delegate to a package command, but may not contain an independent implementation.
-- New code should expose named data structures rather than positional return tuples.
+## Contribution rule
 
-## Release constraints
+Before adding an experiment, decide whether it changes reusable runtime behavior. If it
+does, add the component to the narrowest training/inference module and cover it with a
+dependency-free contract test where practical. If it only analyses a completed run, keep
+it under `experiments/` and document its required input artifacts in
+`docs/EXPERIMENTS.md`.
 
-The repository intentionally excludes screenshots, URLs, trained weights, cached embeddings, and generated paper outputs. Provide those through a versioned release archive or a controlled-access channel, with hashes and a data-use statement. See [DATA_AND_MODELS.md](DATA_AND_MODELS.md).
+## Release constraint
 
-## Follow-up rule for contributions
-
-Before adding a new experiment, first decide whether it changes the reusable runtime. If it does not, place it under `experiments/`; if it does, add the reusable component to the narrowest existing runtime package and cover its contract with a dependency-free test where practical.
+The repository intentionally excludes screenshots, URLs, trained weights, cached
+embeddings, and generated paper outputs. Provide those through a versioned release archive
+or a controlled-access channel with hashes and a data-use statement. See
+[DATA_AND_MODELS.md](DATA_AND_MODELS.md).

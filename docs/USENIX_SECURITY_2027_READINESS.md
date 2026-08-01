@@ -23,7 +23,7 @@ Do not add anonymous-review URLs to this public repository before the review pro
 
 | Requirement | Current status | Required before submission |
 | --- | --- | --- |
-| Clean source layout and portable package entry points | Partial pass | Keep the package-only layout; use a fresh anonymous mirror. |
+| Clean source layout and root CLI entry points | Partial pass | Keep the flat root-CLI layout; use a fresh anonymous mirror. |
 | Anonymous artifact | Blocked | Export a new history-free, identity-free mirror and inspect archive metadata. |
 | Reproducible dependency specification | Partial pass | Record exact Python, PyTorch, CUDA, MMDetection, Transformers, and GPU versions used for every reported table. |
 | Source/configuration availability | Partial pass | Include all code and frozen YAML configurations used for claimed results. |
@@ -49,9 +49,10 @@ Do not add anonymous-review URLs to this public repository before the review pro
 6. Generate a deterministic checksum manifest, including only files that reviewers are allowed to access:
 
    ```bash
-   python scripts/create_artifact_manifest.py \
-     --include README.md --include LICENSE --include pyproject.toml \
-     --include configs --include docs --include scripts --include src \
+   python scripts/create_artifact_manifest.py --tracked-only \
+     --include README.md --include LICENSE --include pyproject.toml --include cli.py \
+     --include data --include models --include docs --include experiments \
+     --include inference --include training --include scripts \\
      --output artifact_manifest.json
    ```
 

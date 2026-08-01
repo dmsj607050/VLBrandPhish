@@ -8,19 +8,13 @@
 | Paper table(s) | Tables: cn-adversarial-summary, cn-adversarial-embedding-distance |
 | Methods | vlbrandphish, phishintention, phishpedia |
 
-## Run
+## Status
 
-```bash
-python -m experiments.adversarial_robustness.run \
-  --screenshot-dir <screenshots> \
-  --url-list <url manifest> \
-  --out-dir outputs/adversarial_robustness
-```
-
-Each method's predictions land in ``outputs/adversarial_robustness/<method>/``. The runner dispatches to
-``inference/<method>/`` and loads weights from ``models/<method>/`` (see
-``experiments/_common.py``). Baselines require ``detectron2`` at runtime.
-
+This directory records the intended protocol and required data, but its `run.py` is not
+yet the complete multi-method evaluator required to reproduce the associated paper table.
+It exits with an explicit error before writing partial outputs. See
+[`docs/EXPERIMENTS.md`](../../docs/EXPERIMENTS.md) for the implementation boundary and
+reproduction requirements.
 ## Expected data
 
 data/phisheval/

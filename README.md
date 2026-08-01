@@ -7,7 +7,7 @@ Official code for **VLBrandPhish**, a visual-language, brand-aware phishing-dete
 - A detection-and-verification workflow: logo detection, visual-language brand identification, and URL-domain verification.
 - SigLIP-based brand-recognizer training code with image-to-image and image-to-text evidence fusion.
 - Logo-detector training wrappers built on MMDetection/DINO.
-- Reproducible command-line entry points, configuration files, unit tests, and a GitHub Actions syntax check.
+- Root command-line entry points, versioned training configurations, lightweight contract tests, and artifact checks.
 
 Datasets, screenshots, trained weights, caches, and experimental run outputs are deliberately **not** tracked. See [Data and model release policy](docs/DATA_AND_MODELS.md) before adding any of them.
 
@@ -36,7 +36,7 @@ VLBrandPhish-main/
 |           |-- configs/             # Training configurations and prompt templates
 |           |-- stage1/              # Pairwise SigLIP stage
 |           `-- stage2/              # Fusion/TriSig stage
-|-- experiments/                     # Per-experiment thin runners (call inference + models)
+|-- experiments/                     # Study contracts, analyses, figures, and preparation tools
 |   |-- overall_phishintention/      # RQ1: overall detection on PhishIntention dataset
 |   |-- overall_vlbp/                # RQ1: overall detection on VLBP-Full
 |   |-- logo_detection/              # RQ2: logo localization (Default/Merged/New)
@@ -97,6 +97,7 @@ The `infer` command accepts explicit paths for every dataset and model input. Ru
 ## Reproducibility and release
 
 - [Reproducibility guide](docs/REPRODUCIBILITY.md)
+- [Experiment status and reproduction contract](docs/EXPERIMENTS.md)
 - [Data and model release policy](docs/DATA_AND_MODELS.md)
 - [Project structure](docs/PROJECT_STRUCTURE.md)
 - [Architecture review and design decisions](docs/ARCHITECTURE.md)

@@ -1,4 +1,4 @@
-"""Compatibility wrapper for ``vlbrandphish train-brand``."""
+"""Compatibility wrapper for ``python cli.py train-brand``."""
 
 from training.vlbrandphish.brand_recognition.cli import main
 

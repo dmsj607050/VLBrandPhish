@@ -8,19 +8,13 @@
 | Paper table(s) | Table: cn-e2e-testa |
 | Methods | vlbrandphish, phishintention, phishpedia |
 
-## Run
+## Status
 
-```bash
-python -m experiments.overall_phishintention.run \
-  --screenshot-dir <screenshots> \
-  --url-list <url manifest> \
-  --out-dir outputs/overall_phishintention
-```
-
-Each method's predictions land in ``outputs/overall_phishintention/<method>/``. The runner dispatches to
-``inference/<method>/`` and loads weights from ``models/<method>/`` (see
-``experiments/_common.py``). Baselines require ``detectron2`` at runtime.
-
+This directory records the intended protocol and required data, but its `run.py` is not
+yet the complete multi-method evaluator required to reproduce the associated paper table.
+It exits with an explicit error before writing partial outputs. See
+[`docs/EXPERIMENTS.md`](../../docs/EXPERIMENTS.md) for the implementation boundary and
+reproduction requirements.
 ## Expected data
 
 data/phishintention/phish_sample_30k, data/phishintention/benign_25k
