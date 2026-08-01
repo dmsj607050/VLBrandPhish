@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import List
 from urllib.parse import urlparse
 
@@ -9,12 +10,12 @@ import numpy as np
 import torch
 from PIL import Image
 
-from .components.brand.naming import normalize_brand_key
-from .components.brand.repository import BrandRepository, score_query_features
-from .data_contracts import DetectionSample
-from .domain_verification import phishintention_domain_accept, registered_domain
-from .input_loading import _iter_items, _safe_crop, resolve_image_path
-from .types import AlphaOutput, PrecomputedData, QueryFeatureData
+from ..components.brand.naming import normalize_brand_key
+from ..components.brand.repository import BrandRepository, score_query_features
+from ..data.contracts import DetectionSample
+from ..decision.domain import phishintention_domain_accept, registered_domain
+from ..data.image_paths import _iter_items, _safe_crop, resolve_image_path
+from ..runtime.types import AlphaOutput, PrecomputedData, QueryFeatureData
 
 def _top2_margin(sim: np.ndarray) -> np.ndarray:
     if sim.ndim != 2:

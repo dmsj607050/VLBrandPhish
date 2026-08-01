@@ -37,13 +37,12 @@ training/vlbrandphish/logo_detection  --> inference/vlbrandphish/components/bran
 training/vlbrandphish/brand_recognition/stage1  --\
 training/vlbrandphish/brand_recognition/stage2  ---+--> inference/vlbrandphish/components/brand
 
-inference/vlbrandphish/input_loading --> logo_detection --> brand_recognition
-                                                          |
-                                                          v
-                                           domain_verification --> evaluation
-                                                          |
-                                                          v
-                                                       pipeline
+inference/vlbrandphish/data --> detection --> recognition --> decision --> evaluation
+                                      \                                    /
+                                       \---------- runtime ---------------/
+                                                         |
+                                                         v
+                                                   pipeline/cli
 
 experiments/* --> public training/inference interfaces or saved output artifacts
 ```

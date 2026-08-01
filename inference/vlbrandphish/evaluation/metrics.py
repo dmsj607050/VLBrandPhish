@@ -8,9 +8,9 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from .components.brand.naming import normalize_brand_key
-from .data_contracts import DetectionSample
-from .types import AlphaOutput, Metrics, PrecomputedData
+from ..components.brand.naming import normalize_brand_key
+from ..data.contracts import DetectionSample
+from ..runtime.types import AlphaOutput, Metrics, PrecomputedData
 
 def _parse_grid_values(raw: str, fallback: List[float]) -> List[float]:
     txt = str(raw or "").strip()

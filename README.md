@@ -19,15 +19,16 @@ VLBrandPhish-main/
 |-- docs/                            # Reproducibility and release documentation
 |-- models/                          # Model checkpoints, one subdir per method (ignored)
 |-- scripts/                         # Manifest, verification, and metadata utilities
-|-- inference/                       # Per-method inference pipelines
-|   `-- vlbrandphish/                # VLBrandPhish end-to-end pipeline
+|-- inference/                       # Per-method inference packages
+|   `-- vlbrandphish/                # VLBrandPhish inference workflow
 |       |-- components/brand/        # Shared encoder, fusion, brand repository, naming
-|       |-- logo_detection.py        # Logo detection command
-|       |-- model_loading.py         # Encoder and brand-repository loading
-|       |-- brand_recognition.py     # Logo-crop encoding and evidence fusion
-|       |-- domain_verification.py   # Domain-brand consistency checks
-|       |-- evaluation.py            # Metrics and reports
-|       `-- pipeline.py              # End-to-end inference command
+|       |-- data/                    # Detection CSV contract, sample loading, image resolution
+|       |-- detection/               # Stage 1 command and MMDetection adapter
+|       |-- recognition/             # Stage 2 resource loading and visual-language features
+|       |-- decision/                # Domain matching and final decision policy
+|       |-- evaluation/              # Metrics and report generation
+|       |-- runtime/                 # Paths, caches, and workflow data types
+|       `-- pipeline/                # End-to-end Stage 2 CLI and orchestration
 |-- training/                        # Training code (VLBrandPhish only)
 |   `-- vlbrandphish/
 |       |-- logo_detection/          # MMDetection/DINO logo-detector training
@@ -86,18 +87,20 @@ python cli.py detect \\
 python cli.py infer \\
   --det-csv outputs/detection/logo_detection_top3.csv \\
   --brand-ckpt models/vlbrandphish/brand_recognizer.pt \\
+  --model-dir models/vlbrandphish/siglip-base-patch16-224 \\
   --progress
 
 # Train the brand recognizer.
 python cli.py train-brand --config training/vlbrandphish/brand_recognition/configs/stage1_siglip.yaml
 ```
 
-The `infer` command accepts explicit paths for every dataset and model input. Run `python cli.py infer --help` for the complete interface. The legacy wrapper `python scripts/train_brand.py ...` remains available for existing training jobs.
+The `infer` command accepts explicit paths for every dataset and model input. Use `--model-dir` when the saved checkpoint contains a machine-specific or stale Hugging Face model path. Run `python cli.py infer --help` for the complete interface. The legacy wrapper `python scripts/train_brand.py ...` remains available for existing training jobs.
 
 ## Reproducibility and release
 
 - [Reproducibility guide](docs/REPRODUCIBILITY.md)
 - [Experiment status and reproduction contract](docs/EXPERIMENTS.md)
+- [VLBrandPhish inference workflow](docs/INFERENCE_WORKFLOW.md)
 - [Data and model release policy](docs/DATA_AND_MODELS.md)
 - [Project structure](docs/PROJECT_STRUCTURE.md)
 - [Architecture review and design decisions](docs/ARCHITECTURE.md)

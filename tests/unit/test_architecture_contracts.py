@@ -6,8 +6,8 @@ from pathlib import Path
 
 from experiments._common import ExperimentImplementationRequired, run_all_methods
 from experiments.overall_vlbp.run import main as overall_vlbp_main
-from inference.vlbrandphish.domain_verification import registered_domain
-from inference.vlbrandphish.types import Metrics
+from inference.vlbrandphish.decision.domain import registered_domain
+from inference.vlbrandphish.runtime.types import Metrics
 
 
 class ArchitectureContractsTest(unittest.TestCase):
@@ -41,13 +41,20 @@ class ArchitectureContractsTest(unittest.TestCase):
             "cli.py",
             "inference/vlbrandphish/components/brand/encoders.py",
             "inference/vlbrandphish/components/brand/fusion.py",
-            "inference/vlbrandphish/input_loading.py",
-            "inference/vlbrandphish/logo_detection.py",
-            "inference/vlbrandphish/model_loading.py",
-            "inference/vlbrandphish/brand_recognition.py",
-            "inference/vlbrandphish/domain_verification.py",
-            "inference/vlbrandphish/evaluation.py",
-            "inference/vlbrandphish/pipeline.py",
+            "inference/vlbrandphish/data/contracts.py",
+            "inference/vlbrandphish/data/dataset.py",
+            "inference/vlbrandphish/data/image_paths.py",
+            "inference/vlbrandphish/detection/command.py",
+            "inference/vlbrandphish/detection/detector.py",
+            "inference/vlbrandphish/recognition/resources.py",
+            "inference/vlbrandphish/recognition/features.py",
+            "inference/vlbrandphish/decision/domain.py",
+            "inference/vlbrandphish/decision/policy.py",
+            "inference/vlbrandphish/evaluation/metrics.py",
+            "inference/vlbrandphish/runtime/cache.py",
+            "inference/vlbrandphish/runtime/paths.py",
+            "inference/vlbrandphish/runtime/types.py",
+            "inference/vlbrandphish/pipeline/cli.py",
             "training/vlbrandphish/logo_detection/train.py",
             "training/vlbrandphish/brand_recognition/common/model.py",
             "training/vlbrandphish/brand_recognition/configs/stage1_siglip.yaml",
@@ -60,6 +67,10 @@ class ArchitectureContractsTest(unittest.TestCase):
 
         legacy_modules = (
             "inference/vlbrandphish/runner.py",
+            "inference/vlbrandphish/data_contracts.py",
+            "inference/vlbrandphish/logo_detection.py",
+            "inference/vlbrandphish/brand_recognition.py",
+            "inference/vlbrandphish/pipeline.py",
             "training/vlbrandphish/brand/engine.py",
             "src/vlbrandphish",
         )

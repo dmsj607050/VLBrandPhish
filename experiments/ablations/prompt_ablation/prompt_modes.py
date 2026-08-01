@@ -19,10 +19,10 @@ except Exception:
     average_precision_score = None
     roc_auc_score = None
 
-from inference.vlbrandphish.paths import default_run_dir, resolve_default_paths
+from inference.vlbrandphish.runtime.paths import default_run_dir, resolve_default_paths
 from inference.vlbrandphish.components.brand.naming import normalize_brand_key
-from inference.vlbrandphish.data_contracts import DetectionSample, read_detection_top3_csv
-from inference.vlbrandphish.cache import (
+from inference.vlbrandphish.data.contracts import DetectionSample, read_detection_top3_csv
+from inference.vlbrandphish.runtime.cache import (
     _build_query_cache_key,
     _hash_dir_tree_signature,
     _hash_file_signature,
@@ -33,17 +33,17 @@ from inference.vlbrandphish.cache import (
     _save_precomputed_cache,
     _save_query_cache,
 )
-from inference.vlbrandphish.brand_recognition import _compute_alpha_output, _precompute_query_features
-from inference.vlbrandphish.evaluation import (
+from inference.vlbrandphish.recognition.features import _compute_alpha_output, _precompute_query_features
+from inference.vlbrandphish.evaluation.metrics import (
     _build_brand_level_reports,
     _build_prediction_rows,
     _evaluate_threshold,
     _objective_value,
     _parse_grid_values,
 )
-from inference.vlbrandphish.input_loading import _inspect_detection_csv_format, _iter_items
+from inference.vlbrandphish.data.image_paths import _inspect_detection_csv_format, _iter_items
 from inference.vlbrandphish.pipeline import _print_runtime_format_info
-from inference.vlbrandphish.types import Metrics, PrecomputedData, QueryFeatureData
+from inference.vlbrandphish.runtime.types import Metrics, PrecomputedData, QueryFeatureData
 from inference.vlbrandphish.components.brand.encoders import CLIPEncoder
 from inference.vlbrandphish.components.brand.repository import BrandRepository, _list_brand_dirs, _list_logo_paths, _load_brand_domains, _read_dbi_texts
 

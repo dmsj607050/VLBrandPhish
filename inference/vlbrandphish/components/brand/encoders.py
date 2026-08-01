@@ -21,7 +21,16 @@ def _is_valid_hf_model_dir(path: str) -> bool:
     return all(os.path.isfile(os.path.join(root, name)) for name in required)
 
 
-def _resolve_siglip_model_dir(model_name: str, *, ckpt_path: str) -> str:
+def _resolve_siglip_model_dir(model_name: str, *, ckpt_path: str, model_dir: str = "") -> str:
+    explicit_dir = str(model_dir or "").strip()
+    if explicit_dir:
+        if not _is_valid_hf_model_dir(explicit_dir):
+            raise RuntimeError(
+                "--model-dir must contain Hugging Face model files such as config.json and "
+                "preprocessor_config.json."
+            )
+        return os.path.abspath(explicit_dir)
+
     raw = str(model_name or "").strip()
     if raw and _is_valid_hf_model_dir(raw):
         return os.path.abspath(raw)
@@ -51,7 +60,7 @@ def _resolve_siglip_model_dir(model_name: str, *, ckpt_path: str) -> str:
 
 
 class CLIPEncoder:
-    def __init__(self, ckpt_path: str, device: str = "cuda:0") -> None:
+    def __init__(self, ckpt_path: str, device: str = "cuda:0", model_dir: str = "") -> None:
         self.device = torch.device(device if str(device).startswith("cuda") and torch.cuda.is_available() else "cpu")
         self.backend = "clip"
         self.model = None
@@ -73,7 +82,7 @@ class CLIPEncoder:
 
         siglip_state = ckpt.get("siglip_state", None)
         if siglip_state is not None:
-            self._init_siglip_backend(ckpt=ckpt, ckpt_path=ckpt_path)
+            self._init_siglip_backend(ckpt=ckpt, ckpt_path=ckpt_path, model_dir=model_dir)
             return
 
         self._init_clip_backend(ckpt=ckpt, ckpt_path=ckpt_path)
@@ -127,7 +136,7 @@ class CLIPEncoder:
             dummy = torch.zeros((1, 3, input_size, input_size), device=self.device, dtype=torch.float32)
             self.embed_dim = int(self.model.encode_image(dummy).shape[-1])
 
-    def _init_siglip_backend(self, *, ckpt: dict, ckpt_path: str) -> None:
+    def _init_siglip_backend(self, *, ckpt: dict, ckpt_path: str, model_dir: str = "") -> None:
         try:
             from transformers import AutoProcessor, SiglipModel
         except ModuleNotFoundError as e:
@@ -138,6 +147,7 @@ class CLIPEncoder:
         model_dir = _resolve_siglip_model_dir(
             str(ckpt.get("model_name") or (ckpt.get("cfg") or {}).get("model_name") or ""),
             ckpt_path=ckpt_path,
+            model_dir=model_dir,
         )
         processor = AutoProcessor.from_pretrained(model_dir, local_files_only=True)
         model = SiglipModel.from_pretrained(model_dir, local_files_only=True).to(self.device)

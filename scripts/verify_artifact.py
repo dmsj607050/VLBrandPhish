@@ -21,6 +21,7 @@ REQUIRED_FILES = (
     "requirements.txt",
     "docs/REPRODUCIBILITY.md",
     "docs/EXPERIMENTS.md",
+    "docs/INFERENCE_WORKFLOW.md",
     "docs/DATA_AND_MODELS.md",
     "docs/USENIX_SECURITY_2027_READINESS.md",
 )

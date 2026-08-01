@@ -39,7 +39,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         parser.error(f"unknown command: {command}")
 
     if command == "detect":
-        from inference.vlbrandphish.logo_detection import main as command_main
+        from inference.vlbrandphish.detection.command import main as command_main
     elif command == "infer":
         from inference.vlbrandphish.pipeline import main as command_main
     elif command == "train-brand":

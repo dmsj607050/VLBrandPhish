@@ -9,9 +9,9 @@ from datetime import datetime
 from typing import Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urlparse
 
-from inference.vlbrandphish.paths import default_run_dir, resolve_default_paths
+from inference.vlbrandphish.runtime.paths import default_run_dir, resolve_default_paths
 from inference.vlbrandphish.components.brand.naming import normalize_brand_key, parse_semicolon_list
-from inference.vlbrandphish.domain_verification import registered_domain
+from inference.vlbrandphish.decision.domain import registered_domain
 
 
 def _to_int(v: object, default: int = 0) -> int:

@@ -10,8 +10,8 @@ from typing import Any, List, Optional, Tuple
 import numpy as np
 import torch
 
-from .data_contracts import DetectionSample
-from .components.brand.repository import BrandRepository
+from ..data.contracts import DetectionSample
+from ..components.brand.repository import BrandRepository
 from .types import PrecomputedData, QueryFeatureData
 
 
@@ -52,15 +52,22 @@ def _hash_dir_tree_signature(root: str, h: "hashlib._Hash", suffixes: Optional[T
 def _build_repo_cache_key(
     *,
     brand_ckpt: str,
-    logo_library_dir: str,
+    model_dir: str = "",
+    logo_library_dir: str = "",
     dbi5_dir: str,
     normal_urls_csv: str,
     max_logo_per_brand: int,
     brand_text_mode: str,
 ) -> str:
     h = hashlib.md5()
-    h.update(b"repo_cache_v5_matched_domain_textmean")
+    h.update(b"repo_cache_v6_matched_domain_textmean_modeldir")
     _hash_file_signature(brand_ckpt, h)
+    if model_dir:
+        _hash_dir_tree_signature(
+            model_dir,
+            h,
+            suffixes=(".json", ".txt", ".model", ".safetensors", ".bin"),
+        )
     _hash_file_signature(normal_urls_csv, h)
     _hash_dir_tree_signature(logo_library_dir, h, suffixes=(".png", ".jpg", ".jpeg", ".bmp", ".webp"))
     if str(brand_text_mode or "dbi5").strip().lower() == "dbi5":

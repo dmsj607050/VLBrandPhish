@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Tuple
 
 from PIL import Image
 
-from .data_contracts import DetectionSample
+from .contracts import DetectionSample
 
 try:
     from tqdm import tqdm

@@ -6,9 +6,9 @@ import os
 import time
 from typing import Tuple
 
-from .components.brand.encoders import CLIPEncoder
-from .components.brand.repository import BrandRepository, build_brand_repository
-from .cache import _build_repo_cache_key, _load_brand_repo_cache, _save_brand_repo_cache
+from ..components.brand.encoders import CLIPEncoder
+from ..components.brand.repository import BrandRepository, build_brand_repository
+from ..runtime.cache import _build_repo_cache_key, _load_brand_repo_cache, _save_brand_repo_cache
 
 
 def load_brand_resources(
@@ -19,20 +19,24 @@ def load_brand_resources(
     normal_urls_csv: str,
     cache_dir: str,
     device: str,
-    max_logo_per_brand: int,
+    model_dir: str = "",
+    max_logo_per_brand: int = -1,
     image_batch_size: int,
     text_batch_size: int,
     brand_text_mode: str,
     use_repository_cache: bool,
     rebuild_repository_cache: bool,
-) -> Tuple[CLIPEncoder, BrandRepository, str, bool]:
-    """Return the encoder, brand repository, cache key, and repository-cache hit flag."""
+) -> Tuple[CLIPEncoder, BrandRepository, str, bool, str]:
+    """Return the encoder, repository, cache key/hit flag, and cache path."""
     t0 = time.perf_counter()
-    encoder = CLIPEncoder(os.path.abspath(brand_checkpoint), device=str(device))
+    encoder = CLIPEncoder(
+        os.path.abspath(brand_checkpoint), device=str(device), model_dir=str(model_dir or "")
+    )
     print(f"[inference] encoder loaded in {time.perf_counter() - t0:.2f}s")
 
     repo_cache_key = _build_repo_cache_key(
         brand_ckpt=os.path.abspath(brand_checkpoint),
+        model_dir=os.path.abspath(model_dir) if model_dir else "",
         logo_library_dir=os.path.abspath(logo_library_dir),
         dbi5_dir=os.path.abspath(dbi5_dir),
         normal_urls_csv=os.path.abspath(normal_urls_csv),
@@ -74,4 +78,4 @@ def load_brand_resources(
         f"[inference] brand repository ready in {time.perf_counter() - t1:.2f}s "
         f"brands={len(repo.brand_names)} cache_hit={int(repo_cache_hit)}"
     )
-    return encoder, repo, repo_cache_key, repo_cache_hit
+    return encoder, repo, repo_cache_key, repo_cache_hit, repo_cache_path

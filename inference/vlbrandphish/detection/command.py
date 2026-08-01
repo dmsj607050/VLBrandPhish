@@ -5,9 +5,9 @@ import os
 import time
 from typing import List, Tuple
 
-from .paths import default_run_dir, resolve_default_paths
-from .data_contracts import DetectionSample, write_detection_top3_csv
-from .data_loader import TestBSample, load_testb_samples
+from ..runtime.paths import default_run_dir, resolve_default_paths
+from ..data.contracts import DetectionSample, write_detection_top3_csv
+from ..data.dataset import TestBSample, load_testb_samples
 
 try:
     from tqdm import tqdm
@@ -74,7 +74,7 @@ def main() -> None:
     )
     print(f"[detection] loaded samples={len(samples)}")
 
-    from .logo_detector import MMDetTopKDetector
+    from .detector import MMDetTopKDetector
 
     detector = MMDetTopKDetector(
         config_path=os.path.abspath(args.det_config),

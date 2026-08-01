@@ -15,27 +15,27 @@ import numpy as np
 import torch
 from PIL import Image
 
-from .paths import default_run_dir, resolve_default_paths
-from .components.brand.naming import normalize_brand_key
-from .data_contracts import DetectionSample, read_detection_top3_csv
-from .domain_verification import phishintention_domain_accept, registered_domain
-from .components.brand.encoders import CLIPEncoder
-from .components.brand.repository import BrandRepository, build_brand_repository, score_query_features
-from .types import AlphaOutput, Metrics, PrecomputedData, QueryFeatureData
-from .brand_recognition import (
+from ..runtime.paths import default_run_dir, resolve_default_paths
+from ..components.brand.naming import normalize_brand_key
+from ..data.contracts import DetectionSample, read_detection_top3_csv
+from ..decision.domain import phishintention_domain_accept, registered_domain
+from ..components.brand.encoders import CLIPEncoder
+from ..components.brand.repository import BrandRepository, build_brand_repository, score_query_features
+from ..runtime.types import AlphaOutput, Metrics, PrecomputedData, QueryFeatureData
+from ..recognition.features import (
     _compute_alpha_output,
     _compute_similarity_from_query_features,
     _precompute_query_features,
 )
-from .evaluation import (
+from ..evaluation.metrics import (
     _build_brand_level_reports,
     _build_prediction_rows,
     _evaluate_threshold,
     _objective_value,
     _parse_grid_values,
 )
-from .input_loading import _inspect_detection_csv_format, _iter_items
-from .model_loading import load_brand_resources
+from ..data.image_paths import _inspect_detection_csv_format, _iter_items
+from ..recognition.resources import load_brand_resources
 
 try:
     from tqdm import tqdm
@@ -46,7 +46,7 @@ except Exception:
 # Cache serialization and signatures are maintained in their own module. The
 # aliases retain the existing internal call surface while downstream scripts
 # migrate to ``inference.cache`` directly.
-from .cache import (
+from ..runtime.cache import (
     _build_feature_cache_key,
     _build_query_cache_key,
     _build_repo_cache_key,
@@ -148,6 +148,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="End-to-end brand matching and phishing decision.")
     parser.add_argument("--det-csv", type=str, default=defaults.det_csv)
     parser.add_argument("--brand-ckpt", type=str, default=defaults.brand_ckpt)
+    parser.add_argument(
+        "--model-dir",
+        type=str,
+        default="",
+        help="Local Hugging Face SigLIP directory; overrides a stale checkpoint model_name path.",
+    )
     parser.add_argument("--logo-library-dir", type=str, default=defaults.logo_library_dir)
     parser.add_argument("--dbi5-dir", type=str, default=defaults.dbi5_dir)
     parser.add_argument("--normal-urls-csv", type=str, default=defaults.normal_urls_csv)
@@ -227,13 +233,14 @@ def main() -> None:
     normal_urls_csv_abs = os.path.abspath(args.normal_urls_csv)
     benign_root_abs = os.path.abspath(args.benign_root)
     phish_root_abs = os.path.abspath(args.phish_root)
-    encoder, repo, repo_cache_key, repo_cache_hit = load_brand_resources(
+    encoder, repo, repo_cache_key, repo_cache_hit, repo_cache_path = load_brand_resources(
         brand_checkpoint=brand_ckpt_abs,
         logo_library_dir=logo_library_dir_abs,
         dbi5_dir=dbi5_dir_abs,
         normal_urls_csv=normal_urls_csv_abs,
         cache_dir=cache_dir,
         device=str(args.device),
+        model_dir=str(args.model_dir or ""),
         max_logo_per_brand=int(args.max_logo_per_brand),
         image_batch_size=int(args.image_batch_size),
         text_batch_size=int(args.text_batch_size),
@@ -505,6 +512,7 @@ def main() -> None:
         "config": {
             "det_csv": det_csv,
             "brand_ckpt": os.path.abspath(args.brand_ckpt),
+            "model_dir": os.path.abspath(args.model_dir) if args.model_dir else "",
             "logo_library_dir": logo_library_dir_abs,
             "dbi5_dir": dbi5_dir_abs,
             "normal_urls_csv": normal_urls_csv_abs,
