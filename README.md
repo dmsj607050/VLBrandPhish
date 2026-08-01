@@ -36,10 +36,17 @@ VLBrandPhish-main/
 |           |-- configs/             # Training configurations and prompt templates
 |           |-- stage1/              # Pairwise SigLIP stage
 |           `-- stage2/              # Fusion/TriSig stage
-|-- experiments/                     # Per-experiment runners (call inference + models)
-|   |-- ablations/                   # Branch/prompt/library/weight ablations
-|   |-- analysis/                    # Inference diagnostics and protocols
-|   |-- figures/                     # Case-study and figure generation
+|-- experiments/                     # Per-experiment thin runners (call inference + models)
+|   |-- overall_phishintention/      # RQ1: overall detection on PhishIntention dataset
+|   |-- overall_vlbp/                # RQ1: overall detection on VLBP-Full
+|   |-- logo_detection/              # RQ2: logo localization (Default/Merged/New)
+|   |-- brand_identification/        # RQ2: brand matching on cropped-logo set
+|   |-- cross_time/                  # RQ3: cross-time (VLBP-Overlap)
+|   |-- cross_brand/                 # RQ3: cross-brand (VLBP-Novel)
+|   |-- adversarial_robustness/      # RQ4: logo manipulation + perturbation attacks
+|   |-- ablations/                   # Branch / prompt / ref-library-size / fusion-weight
+|   |-- analysis/                    # Inference diagnostics and protocols (supporting)
+|   |-- figures/                     # Case-study and figure generation (supporting)
 |   `-- preparation/                 # Dataset/reference-library preparation
 |-- common/                          # Cross-method shared code (paths, annotation)
 `-- tests/                           # Lightweight, data-free checks
