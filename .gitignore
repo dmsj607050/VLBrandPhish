@@ -22,17 +22,9 @@ credentials*.json
 secrets*.json
 
 # Data, model weights, run outputs, and caches
-# data: track dataset docs (*.md), ignore actual data subdirs
-data/*
-!data/.gitkeep
-!data/*.md
-# models: keep per-method dir structure + docs, ignore weights/caches/zips
-models/vlbrandphish/*
-models/phishintention/*
-models/phishpedia/*
-!models/*/.gitkeep
-outputs/*
-!outputs/.gitkeep
+data/
+models/
+outputs/
 *.pt
 *.pth
 *.ckpt
@@ -54,3 +46,10 @@ mlruns/
 
 # Machine-specific one-click runner configuration
 inference/vlbrandphish/run_e2e.local.bat
+
+# Local experiment artifacts (manifests, predictions, logs, and caches)
+experiments/**/results/*
+!experiments/**/results/.gitkeep
+# Background launcher logs for local experiment runs
+experiments/**/*_launcher.stdout.log
+experiments/**/*_launcher.stderr.log

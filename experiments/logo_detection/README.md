@@ -1,22 +1,41 @@
-# Logo localization analysis
+# Logo Detection Evaluation
+
+VLBrandPhish DINO+SwinL logo detector evaluation on two public test sets.
 
 | | |
 | --- | --- |
-| Research question | RQ2 |
-| Dataset | Three test sets: Default (901), Merged (2,480), New (12,801) |
-| Metrics | COCO bbox mAP@[.50:.95] |
-| Paper table(s) | Table: cn-logo-det |
-| Methods | vlbrandphish, phishintention, phishpedia |
+| Research question | RQ2 — logo localisation performance |
+| Datasets | PhishIntention val (901 images) / PhishPedia test (1,579 images) |
+| Metrics | COCO bbox mAP@[.50:.95], mAP@.50, mAP@.75 (logo class only) |
+| Paper table(s) | cn-logo-det |
 
-## Status
+## Datasets (expected under `data/`)
 
-This directory records the intended protocol and required data, but its `run.py` is not
-yet the complete multi-method evaluator required to reproduce the associated paper table.
-It exits with an explicit error before writing partial outputs. See
-[`docs/EXPERIMENTS.md`](../../docs/EXPERIMENTS.md) for the implementation boundary and
-reproduction requirements.
-## Expected data
+| Dataset | Images | GT logos | Format |
+| --- | --- | --- | --- |
+| phishintention | 901 | 934 | COCO JSON (`data/phishintention/val_coco.json` + `val_imgs/`) |
+| phishpedia | 1,579 | 1,464 | COCO JSON (`data/phishpedia/coco_test.json`) |
 
-data/phishintention/Logo_train, data/vlbp_set/01_phish_12K
+Paths are relative to the repo root. Override via `--pi-coco-json` / `--pp-coco-json` / `--pp-images-root`.
 
-See [data/](../../data/) for dataset sources, sizes, and download links.
+## Run
+
+**Smoke test (1 image):**
+
+```
+python experiments/logo_detection/run.py \
+  --det-config models/vlbrandphish/patched_config.py \
+  --det-checkpoint models/vlbrandphish/logo_detector.pth \
+  --max-images 1
+```
+
+**Full evaluation (both datasets):**
+
+```
+python experiments/logo_detection/run.py \
+  --det-config models/vlbrandphish/patched_config.py \
+  --det-checkpoint models/vlbrandphish/logo_detector.pth \
+  --dataset both
+```
+
+Outputs under `experiments/logo_detection/results/`.

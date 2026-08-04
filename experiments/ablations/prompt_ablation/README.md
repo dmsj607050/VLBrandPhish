@@ -1,11 +1,33 @@
-# DBI-4 prompt configuration ablation
+# Text prompt configuration ablation
 
 | | |
 | --- | --- |
-| Section | appendix A.2 |
-| Setting | Cropped-logo eval set (2,700), varying prompt configurations |
-| Metrics | AUROC, Brand Top-1, F1 |
-| Paper table(s) | Table: app-prompt-ablation |
+| Section | Appendix -- prompt configuration study |
+| Setting | Cropped-logo eval set (~2,700 crops), 6 prompt configurations at fixed 0.8 img + 0.2 txt fusion |
+| Metrics | AUROC, Brand Top-1, F1 (plus Match Acc, Precision, Recall) |
+| Paper table(s) | Prompt ablation table |
 
-Existing code: see ``prompt_modes.py`` / ``prompt_library_sweep.py`` for the prompt ablation
-(ported from the prior experiments package). Other ablations are ported incrementally.
+## Prompt configurations
+
+| Directory | Description |
+|---|---|
+| `brand_only` | Brand name only |
+| `brand_plus_color` | Brand name + color |
+| `brand_plus_content` | Brand name + content composition |
+| `brand_plus_style` | Brand name + style |
+| `brand_plus_industry` | Brand name + industry |
+| `visual_all` | Brand name + color + content + style (default) |
+
+All configs live under `data/VLBrandPhish/04_prompt_libraries_152/`.
+
+## Run
+
+```bash
+# Full sweep (all 6 configs)
+python experiments/ablations/prompt_ablation/run.py
+
+# Specific configs only
+python experiments/ablations/prompt_ablation/run.py --configs brand_only,visual_all
+```
+
+Output under `experiments/ablations/prompt_ablation/results/`: `summary.json`, `results.csv`, `results.md`, `results_table13.md`.

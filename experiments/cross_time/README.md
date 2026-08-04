@@ -1,22 +1,16 @@
-# Cross-time stability
+# Experiment 2: Cross-time evaluation
 
-| | |
-| --- | --- |
-| Research question | RQ3 |
-| Dataset | VLBP-Overlap (6,400 recent phishing, 48 brands seen in training) + 12,187 benign |
-| Metrics | Precision, Recall, F1, AUROC, AP, TPR@FPR<=1%, Match Acc |
-| Paper table(s) | Table: cn-cross-time |
-| Methods | vlbrandphish, phishintention, phishpedia |
+This runner evaluates the held-out recent phishing samples from brands seen while the
+brand encoder was trained. It reads the versioned split in
+`08_brands_overlap.csv` and selects rows with `in_277` equal to 1.
 
-## Status
+Run from the repository root:
 
-This directory records the intended protocol and required data, but its `run.py` is not
-yet the complete multi-method evaluator required to reproduce the associated paper table.
-It exits with an explicit error before writing partial outputs. See
-[`docs/EXPERIMENTS.md`](../../docs/EXPERIMENTS.md) for the implementation boundary and
-reproduction requirements.
-## Expected data
+    python experiments/cross_time/run.py
 
-data/vlbp_set/01_phish_12K (overlap split), data/vlbp_set/02_bengin_12K
+The split has exactly 48 seen-training brands and 6,400 phishing samples. All readable
+benign screenshots are included. Each input manifest records collection_timestamp from
+the source JSON when it is available, so the temporal provenance remains auditable.
 
-See [data/](../../data/) for dataset sources, sizes, and download links.
+Outputs use the same layout as Experiment 1 and use the identical fixed fusion and
+threshold; this script does not search weights or thresholds.

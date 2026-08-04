@@ -2,21 +2,15 @@
 
 | | |
 | --- | --- |
-| Research question | RQ2 |
-| Dataset | Cropped-logo eval set (2,700 crops: 1,352 phish + 1,348 benign, 110 brands) |
-| Metrics | Match Acc |
-| Paper table(s) | Table: cn-brand-cls |
-| Methods | vlbrandphish, phishintention, phishpedia |
+| Research question | RQ2 -- brand identification accuracy |
+| Dataset | Cropped-logo eval set (~2,700 crops, ~100 brands) |
+| Metrics | Match Acc (benign→benign, phish→correct target brand) |
+| Methods | VLBrandPhish (0.8 img + 0.2 txt, thr=0.62), PhishIntention (BiT+OCR, thr=0.87), PhishPedia (BiT, thr=0.87) |
 
-## Status
+## Run
 
-This directory records the intended protocol and required data, but its `run.py` is not
-yet the complete multi-method evaluator required to reproduce the associated paper table.
-It exits with an explicit error before writing partial outputs. See
-[`docs/EXPERIMENTS.md`](../../docs/EXPERIMENTS.md) for the implementation boundary and
-reproduction requirements.
-## Expected data
+```
+python experiments/brand_identification/run.py
+```
 
-data/vlbp_set/08_open_set_logo_crops_1352_seed20260501
-
-See [data/](../../data/) for dataset sources, sizes, and download links.
+Results written to `experiments/brand_identification/results/`.

@@ -1,1 +1,0 @@
-"""Paper-figure generation utilities."""

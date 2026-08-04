@@ -1,22 +1,39 @@
-# Overall detection on VLBP-Full
+# Experiment 1: Full-dataset phishing detection
 
 | | |
 | --- | --- |
-| Research question | RQ1 |
-| Dataset | VLBP-Full (12,801 phishing + 12,187 benign, 152 brands) |
-| Metrics | Precision, Recall, F1, AUROC, AP, TPR@FPR<=1%, Match Acc |
-| Paper table(s) | Table: cn-e2e-main |
-| Methods | vlbrandphish, phishintention, phishpedia |
+| Research question | RQ1 -- overall end-to-end phishing detection on the VLBP official dataset |
+| Dataset | All samples under `01_phish_12K` and `02_bengin_12K` (152 brands, no filtering) |
+| Pipeline | Stage 1 (DINO logo detection) + Stage 2 (SigLIP brand retrieval + URL decision) |
+| Fixed decision | image_weight=0.8, text_weight=0.2, threshold=0.62 |
+| Expected counts | **12,801 phishing + 12,164 benign = 24,965** (23 benign dirs lack `shot.png`) |
 
-## Status
+## Defaults (baked into `run.py`)
 
-This directory records the intended protocol and required data, but its `run.py` is not
-yet the complete multi-method evaluator required to reproduce the associated paper table.
-It exits with an explicit error before writing partial outputs. See
-[`docs/EXPERIMENTS.md`](../../docs/EXPERIMENTS.md) for the implementation boundary and
-reproduction requirements.
-## Expected data
+| Parameter | Value |
+| --- | --- |
+| `dataset_root` | `data/VLBrandPhish` (or set `VLBRANDPHISH_DATASET_ROOT` env var) |
+| `dbi5_dir` | `<dataset_root>/04_prompt_libraries_152/visual_all` |
+| `brand_text_mode` | `dbi5` |
 
-data/vlbp_set/01_phish_12K, data/vlbp_set/02_bengin_12K
+## Run
 
-See [data/](../../data/) for dataset sources, sizes, and download links.
+**Smoke test (manifest only, no GPU):**
+
+```
+python experiments/overall_vlbp/run.py --prepare-only --run-name smoke
+```
+
+**Full experiment:**
+
+```
+python experiments/overall_vlbp/run.py --run-name overall_full
+```
+
+**Reuse predictions from another full run (e.g. for cross_brand subsets):**
+
+```
+python experiments/cross_brand/run.py --from-overall-run results/overall_vlbp_<name>
+```
+
+Outputs under `experiments/overall_vlbp/results/overall_vlbp_<run-name>/`.

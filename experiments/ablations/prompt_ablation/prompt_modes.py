@@ -19,10 +19,10 @@ except Exception:
     average_precision_score = None
     roc_auc_score = None
 
-from inference.vlbrandphish.runtime.paths import default_run_dir, resolve_default_paths
-from inference.vlbrandphish.components.brand.naming import normalize_brand_key
-from inference.vlbrandphish.data.detection_csv import DetectionSample, read_detection_top3_csv
-from inference.vlbrandphish.runtime.cache import (
+from inference.runtime.paths import default_run_dir, resolve_default_paths
+from inference.components.brand.naming import normalize_brand_key
+from inference.data.detection_csv import DetectionSample, read_detection_top3_csv
+from inference.runtime.cache import (
     build_query_cache_key,
     hash_dir_tree_signature,
     hash_file_signature,
@@ -33,24 +33,24 @@ from inference.vlbrandphish.runtime.cache import (
     save_precomputed_cache,
     save_query_cache,
 )
-from inference.vlbrandphish.recognition.features import (
+from inference.recognition.features import (
     FIXED_DECISION_THRESHOLD,
     FIXED_IMAGE_WEIGHT,
     FIXED_TEXT_WEIGHT,
     compute_fixed_fusion_output,
     precompute_query_features,
 )
-from inference.vlbrandphish.evaluation.metrics import (
+from inference.evaluation.metrics import (
     build_brand_level_reports as _build_brand_level_reports,
     build_prediction_rows as _build_prediction_rows,
     evaluate_threshold as _evaluate_threshold,
 )
-from inference.vlbrandphish.data.image_paths import inspect_detection_csv_format
-from inference.vlbrandphish.runtime.progress import iter_with_progress
-from inference.vlbrandphish.runtime.diagnostics import print_runtime_format_info
-from inference.vlbrandphish.runtime.types import Metrics, PrecomputedData, QueryFeatureData
-from inference.vlbrandphish.components.brand.encoders import CLIPEncoder
-from inference.vlbrandphish.components.brand.repository import BrandRepository, list_brand_dirs, list_logo_paths, load_brand_domains, read_dbi_texts
+from inference.data.image_paths import inspect_detection_csv_format
+from inference.runtime.progress import iter_with_progress
+from inference.runtime.diagnostics import print_runtime_format_info
+from inference.runtime.types import Metrics, PrecomputedData, QueryFeatureData
+from inference.components.brand.encoders import CLIPEncoder
+from inference.components.brand.repository import BrandRepository, list_brand_dirs, list_logo_paths, load_brand_domains, read_dbi_texts
 
 
 SIMPLE13_PROMPT_TEMPLATES: Tuple[str, ...] = (
@@ -91,6 +91,7 @@ def _ensure_dir(path: str) -> str:
 
 
 def _discover_latest_stage2_summary(outputs_dir: str) -> str:
+    """Find the most recently modified stage2 summary.json under *outputs_dir*."""
     outputs_dir = os.path.abspath(outputs_dir)
     if not os.path.isdir(outputs_dir):
         raise FileNotFoundError(f"outputs dir not found: {outputs_dir}")
@@ -119,6 +120,7 @@ def _discover_latest_stage2_summary(outputs_dir: str) -> str:
 
 
 def _build_simple13_prompts(brand_name: str) -> List[str]:
+    """Expand 13 brand-agnostic templates with one brand name."""
     b = str(brand_name or "").strip()
     return [tpl.format(b=b) for tpl in SIMPLE13_PROMPT_TEMPLATES]
 
@@ -165,6 +167,7 @@ def _build_prompt_repo_cache_key(
     max_logo_per_brand: int,
     mode_spec: PromptModeSpec,
 ) -> str:
+    """Stable repo cache key that captures mode, checkpoint, and all input files."""
     if mode_spec.name == "dbi5":
         h = hashlib.md5()
         h.update(b"repo_cache_v3_strict_host_textmean")
@@ -207,6 +210,7 @@ def _make_mode_feature_cache_path(
     repo_cache_key: str,
     mode_spec: PromptModeSpec,
 ) -> str:
+    """Deterministic feature-cache path keyed on mode plus repo snapshot."""
     if mode_spec.name == "dbi5":
         h = hashlib.md5()
         h.update(b"stage2_feature_cache_v1")
@@ -441,6 +445,7 @@ def compute_similarity_from_query_features_mode(
 
 
 def _compute_curve_metrics(*, y_true: np.ndarray, curve_score: np.ndarray) -> Dict[str, Optional[float]]:
+    """Compute AUROC and average precision; return None values when only one class is present."""
     out: Dict[str, Optional[float]] = {
         "auroc": None,
         "average_precision": None,
@@ -466,6 +471,7 @@ def _compute_curve_metrics(*, y_true: np.ndarray, curve_score: np.ndarray) -> Di
 
 
 def _compare_row_from_result(result: Dict[str, Any]) -> Dict[str, Any]:
+    """Flatten a per-mode result dict into a single comparison-table row."""
     metrics = dict(result.get("metrics", {}))
     overview = dict(result.get("brand_level_overview", {}))
     curves = dict(result.get("curve_metrics", {}))
@@ -506,6 +512,7 @@ def _compare_row_from_result(result: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _resolve_mode_list(raw: str) -> List[PromptModeSpec]:
+    """Parse a comma/semicolon-separated list of mode names into PromptModeSpec objects."""
     tokens = [str(x).strip().lower() for x in str(raw or "").replace(";", ",").split(",")]
     out: List[PromptModeSpec] = []
     seen = set()
@@ -533,6 +540,7 @@ def load_query_cache_or_build(
     phish_root: str,
     progress: bool,
 ) -> Tuple[QueryFeatureData, int]:
+    """Load an existing query cache or build and save a new one from scratch."""
     cache_hit = 0
     if (not bool(rebuild_query_cache)) and os.path.isfile(query_cache_path):
         query_data = load_query_cache(query_cache_path)

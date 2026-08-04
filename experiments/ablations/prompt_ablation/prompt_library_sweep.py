@@ -1,3 +1,11 @@
+"""Batch-evaluate every DBI-5 prompt-family directory against a frozen detection run.
+
+Runs ``prompt_modes`` as a subprocess once per prompt family (brand_only,
+brand_plus_color, etc.) under ``generated_prompt_libraries/``, reusing the same
+OpenBrandPhish query cache.  Aggregates all results into a sweep CSV / Markdown
+table sorted by F1, so the best family is identified in one pass.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -9,7 +17,7 @@ import sys
 import time
 from typing import Any, Dict, List, Optional
 
-from inference.vlbrandphish.runtime.paths import default_run_dir, resolve_default_paths
+from inference.runtime.paths import default_run_dir, resolve_default_paths
 from .prompt_modes import _discover_latest_stage2_summary
 
 
@@ -64,6 +72,7 @@ def _write_md(path: str, rows: List[Dict[str, Any]]) -> None:
 
 
 def _discover_families(prompt_root: str) -> List[str]:
+    """List subdirectory names under *prompt_root*, skipping hidden entries."""
     root = os.path.abspath(prompt_root)
     if not os.path.isdir(root):
         raise FileNotFoundError(f"prompt_root not found: {root}")
@@ -82,6 +91,7 @@ def _discover_families(prompt_root: str) -> List[str]:
 
 
 def _parse_family_list(raw: str, discovered: List[str]) -> List[str]:
+    """Parse comma/semicolon-separated family names; return all if empty."""
     txt = str(raw or "").strip()
     if not txt:
         return discovered
@@ -93,6 +103,7 @@ def _parse_family_list(raw: str, discovered: List[str]) -> List[str]:
 
 
 def _read_single_compare_csv(path: str) -> Dict[str, Any]:
+    """Read a one-row metrics_compare.csv produced by prompt_modes and cast typed fields."""
     with open(path, "r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         rows = list(reader)

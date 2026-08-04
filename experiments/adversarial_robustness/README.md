@@ -1,22 +1,27 @@
-# Adversarial robustness under logo manipulation and perturbation
+# Experiment 4: Adversarial robustness
 
-| | |
-| --- | --- |
-| Research question | RQ4 |
-| Dataset | PhishEval: visible manipulation (13 types, 88,152 phish) + perturbation (6 types, 6,528 phish) + original (1,320) |
-| Metrics | Phishing detection rate on squatted-domain samples; benign alert rate; embedding intra-brand distance & separation ratio (113-sample subset) |
-| Paper table(s) | Tables: cn-adversarial-summary, cn-adversarial-embedding-distance |
-| Methods | vlbrandphish, phishintention, phishpedia |
+The runner evaluates PhishEval screenshots with the same detector and fixed-fusion
+decision rule used by Experiments 1 to 3. Squatted URLs are labelled phishing; original
+URLs are labelled benign. Grouped reports provide detection recall and benign alert rate
+for every attack and URL type.
 
-## Status
+The default source is the locally prepared six perturbation attacks:
 
-This directory records the intended protocol and required data, but its `run.py` is not
-yet the complete multi-method evaluator required to reproduce the associated paper table.
-It exits with an explicit error before writing partial outputs. See
-[`docs/EXPERIMENTS.md`](../../docs/EXPERIMENTS.md) for the implementation boundary and
-reproduction requirements.
-## Expected data
+    python experiments/adversarial_robustness/run.py
 
-data/phisheval/
+Use the 13 visible-manipulation families with:
 
-See [data/](../../data/) for dataset sources, sizes, and download links.
+    python experiments/adversarial_robustness/run.py --source visible
+
+Use both PhishEval families with:
+
+    python experiments/adversarial_robustness/run.py --source all
+
+The prepared perturbation files are read from the local PhishEval preparation directory.
+The runner maps PhishEval aliases to the official 152-brand reference library and, by
+default, excludes samples with no available reference brand. The frozen manifest and
+experiment_summary.json report this coverage boundary explicitly. Add `--keep-unmapped`
+only for a detection-only analysis where top-1 brand accuracy is not meaningful.
+
+Each run writes its manifest, detector output, fixed-fusion predictions, grouped
+metrics, logs, and asset hashes to `results/`.

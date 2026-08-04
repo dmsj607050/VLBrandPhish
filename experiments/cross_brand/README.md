@@ -1,22 +1,40 @@
-# Cross-brand stability
+# Experiment 3: Cross-Brand (Novel Brands, in_277 == 0)
 
-| | |
-| --- | --- |
-| Research question | RQ3 |
-| Dataset | VLBP-Novel (6,401 phishing, 104 brands unseen in training) + 12,187 benign |
-| Metrics | Precision, Recall, F1, AUROC, AP, TPR@FPR<=1%, Match Acc |
-| Paper table(s) | Table: cn-cross-brand |
-| Methods | vlbrandphish, phishintention, phishpedia |
+Cross-brand phishing detection on **unseen** brands (104 brands with `in_277 == 0` in
+`08_brands_overlap.csv`).
 
-## Status
+## Datasets
 
-This directory records the intended protocol and required data, but its `run.py` is not
-yet the complete multi-method evaluator required to reproduce the associated paper table.
-It exits with an explicit error before writing partial outputs. See
-[`docs/EXPERIMENTS.md`](../../docs/EXPERIMENTS.md) for the implementation boundary and
-reproduction requirements.
-## Expected data
+| Asset | Path |
+|---|---|
+| Phishing screenshots | `data/VLBrandPhish/01_phish_12K` -- novel 104 brands, 6,401 images |
+| Benign screenshots | `data/VLBrandPhish/02_bengin_12K` -- 12,164 images |
+| Logo reference library | `data/VLBrandPhish/03_logo_reference_library/logo_reference_library` -- restricted to 104 novel brands |
+| Text prompt library | `data/VLBrandPhish/04_prompt_libraries_152/visual_all` -- exact match with logo reference, 104/104 |
+| Normal URL mapping | `data/VLBrandPhish/07_normal_urls_testb.csv` |
+| Brand split table | `data/VLBrandPhish/08_brands_overlap.csv` -- `in_277 == 0` |
 
-data/vlbp_set/01_phish_12K (novel split), data/vlbp_set/02_bengin_12K
+## Hyperparameters
 
-See [data/](../../data/) for dataset sources, sizes, and download links.
+Identical to cross-time, fixed:
+
+| Parameter | Value |
+|---|---|
+| brand_text_mode | dbi5 |
+| image_weight (alpha) | 0.8 |
+| text_weight | 0.2 |
+| threshold | 0.62 |
+| topk | 3 (experiment framework default) |
+| device | cuda:0 |
+
+## Run
+
+```bash
+# Prepare manifest (validate config only, no inference)
+python experiments/cross_brand/run.py --prepare-only --run-name smoke_manifest
+
+# Full run (Stage 1 DINO detection + Stage 2 VLBrandPhish inference)
+python experiments/cross_brand/run.py --run-name cross_brand_full
+```
+
+Output under `experiments/cross_brand/results/cross_brand_<run-name>/`.
