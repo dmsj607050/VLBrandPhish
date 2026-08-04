@@ -1,9 +1,14 @@
 # Install a CUDA/CPU build of PyTorch appropriate for your platform first:
-# https://pytorch.org/get-started/locally/
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#   (torchvision is also required; it typically comes bundled with PyTorch)
+# Docs: https://pytorch.org/get-started/locally/
 numpy>=1.26
 Pillow>=10.0
 pyyaml>=6.0
+scikit-learn>=1.3
 sentencepiece>=0.2.0
 tldextract>=5.1,<6
 tqdm>=4.66
 transformers>=4.45
+# Optional -- only needed for training visualisation:
+# matplotlib>=3.7

@@ -22,14 +22,12 @@ credentials*.json
 secrets*.json
 
 # Data, model weights, run outputs, and caches
-data/*
-!data/.gitkeep
-!data/README.md
-models/*
-!models/.gitkeep
-!models/README.md
-outputs/*
-!outputs/.gitkeep
+# Keep the directory skeleton in Git while excluding datasets and model files.
+/data/*
+!/data/.gitkeep
+/models/*
+!/models/.gitkeep
+outputs/
 *.pt
 *.pth
 *.ckpt
@@ -48,3 +46,13 @@ Thumbs.db
 .vscode/
 wandb/
 mlruns/
+
+# Machine-specific one-click runner configuration
+inference/vlbrandphish/run_e2e.local.bat
+
+# Local experiment artifacts (manifests, predictions, logs, and caches)
+experiments/**/results/*
+!experiments/**/results/.gitkeep
+# Background launcher logs for local experiment runs
+experiments/**/*_launcher.stdout.log
+experiments/**/*_launcher.stderr.log
