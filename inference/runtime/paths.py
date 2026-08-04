@@ -35,8 +35,8 @@ REL_PATHS = {
     "dbi5_dir": "data/brand_library/DBI-5",
     "det_csv": "outputs/detection/logo_detection_top3.csv",
     "normal_urls_csv": "data/brand_library/normal_urls.csv",
-    "brand_ckpt": "models/brand_recognizer.pt",
-    "detector_ckpt": "models/logo_detector.pth",
+    "brand_ckpt": "models/vlbrandphish/brand_identify.pt",
+    "detector_ckpt": "models/vlbrandphish/detector.pth",
 }
 
 

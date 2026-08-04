@@ -10,48 +10,29 @@ The method works in two stages: (1) a DINO-based logo detector localizes brand l
 
 ```
 VLBrandPhish-main/
-├── requirements.txt              # Python dependencies (PyTorch installed separately)
-├── requirements-detector.txt     # MMDetection dependencies (Stage 1 only)
-├── pyproject.toml                # Project metadata
-├── README.md                     # This file
-├── LICENSE                       # MIT License
-│
-├── inference/                    # Inference code
-│   └── vlbrandphish/
-│       ├── components/brand/     #   CLIP/SigLIP encoder, brand repository, name normalization
-│       ├── data/                 #   Detection CSV schema, sample loading, image resolution
-│       ├── detection/            #   Stage 1: logo detection command & MMDetection adapter
-│       ├── recognition/          #   Stage 2: resource loading, feature extraction, fusion
-│       ├── decision/             #   Domain matching & phishing decision policy
-│       ├── evaluation/           #   Metrics (accuracy, precision, recall, F1, brand acc)
-│       ├── runtime/              #   Paths, caching, progress, diagnostic types
-│       └── run.py                #   Stage 2 end-to-end CLI & orchestration
-│
-├── training/                     # Training code (VLBrandPhish only)
-│   ├── logo_detection/           #   MMDetection/DINO detector training & evaluation
-│   ├── brand_recognition/
-│   │   ├── common/               #   Shared data/model/loss/optimizer/prompt code
-│   │   ├── configs/              #   Versioned YAML configs + prompt templates
-│   │   ├── stage1/               #   Pairwise SigLIP logo-crop training
-│   │   └── stage2/               #   Fusion / TriSig brand-recognition training
-│   └── vlbrandphish/             #   Deprecated training layout (kept for compatibility)
-│
-├── experiments/                  # Paper experiments (see "Reproducing experiments" below)
-│   ├── _shared/                  #   Shared manifest & execution engine
-│   ├── overall_vlbp/             #   RQ1: full-dataset detection (152 brands)
-│   ├── overall_phishintention/   #   RQ1: detection on PhishIntention dataset
-│   ├── brand_identification/     #   RQ2: open-set brand identification
-│   ├── cross_time/               #   RQ3: cross-time stability (48 seen brands)
-│   ├── cross_brand/              #   RQ3: cross-brand generalization (104 novel brands)
-│   ├── adversarial_robustness/   #   RQ4: adversarial perturbation & manipulation
-│   └── ablations/                #   Branch / prompt / ref-library-size ablations
-│
-├── scripts/                      # Artifact verification, manifest, metadata utilities
-├── tests/                        # Minimal smoke test (test_smoke.py)
-├── data/                         # Dataset documentation (see below; actual data excluded)
-└── models/                       # Model checkpoints (see below; actual weights excluded)
+|-- .github/workflows/ci.yml       # Syntax, path, and artifact-hygiene checks
+|-- inference/                     # Flat inference package
+|   |-- components/                # Brand encoders and repositories
+|   |-- data/                      # Detection CSV and image-path helpers
+|   |-- decision/                  # Domain-aware phishing decision policy
+|   |-- detection/                 # Stage 1 DINO detector command
+|   |-- evaluation/                # Metrics
+|   |-- recognition/               # Stage 2 feature extraction and fusion
+|   |-- runtime/                   # Default paths, caching, and diagnostics
+|   `-- run.py                     # Stage 2 end-to-end CLI
+|-- training/
+|   |-- brand_recognition/         # SigLIP training and configs
+|   `-- logo_detection/            # DINO detector training and evaluation
+|-- experiments/                   # Paper experiment runners
+|-- tests/test_smoke.py            # Reproducibility environment smoke test
+|-- data/                          # External datasets only; contents are excluded from Git
+|-- models/                        # External model files only; contents are excluded from Git
+|-- requirements.txt
+|-- requirements-detector.txt
+|-- pyproject.toml
+|-- README.md
+`-- LICENSE
 ```
-
 ---
 
 ## Installation
@@ -81,28 +62,31 @@ Datasets are **not included** in this repository (too large; some require redist
 | Dataset | Size | Content | Expected path |
 |---|---|---|---|
 | **VLBP-Set** | ~15 GB | 12,801 phishing + 12,187 benign screenshots (152 brands); logo reference library; DBI text prompts; cropped-logo eval set | `data/VLBrandPhish/` |
-| **PhishIntention** | ~49 GB | 24,532 phishing + 21,974 benign; 277-brand logo library; logo-detection annotations | `data/phishintention/` |
-| **PhishEval** | ~21 GB | Adversarial samples: 13 visible manipulations + 6 perturbation attacks | `data/phisheval/` |
-| **PhishPedia logo** | ~46 GB | Additional logo-detection test set (merged with PhishIntention's) | `data/phishpedia_logo/` |
+| **PhishIntention** | ~49 GB | 24,532 phishing + 21,974 benign; 277-brand logo library; logo-detection annotations | `data/PhishIntention/` |
+| **PhishEval** | ~21 GB | Adversarial samples: 13 visible manipulations + 6 perturbation attacks | `data/PhishEval/` |
+| **PhishPedia logo** | ~46 GB | Additional logo-detection test set (merged with PhishIntention's) | `data/Phishpedia/` |
 
-### VLBP-Set local layout
+### Expected VLBP-Set local layout
+
+The following is the expected layout after downloading the external dataset. Dataset contents are intentionally not stored in this Git repository.
 
 ```
 data/VLBrandPhish/
-├── 01_phish_12K/                      # Phishing screenshots organized by brand
-├── 02_bengin_12K/                     # Benign screenshots
-├── 03_logo_reference_library/         # Reference logo images per brand
-├── 04_prompt_libraries_152/           # DBI-5 text prompt libraries
-├── 07_normal_urls_testb.csv           # Brand → official domain mapping
-└── 08_open_set_logo_crops_1352_seed20260501/  # Cropped-logo eval set
+|-- 01_phish_12K/                  # Phishing screenshots organized by brand
+|-- 02_bengin_12K/                 # Benign screenshots
+|-- 03_logo_reference_library/     # Reference logo images per brand
+|-- 04_prompt_libraries_152/       # DBI-5 text prompt libraries
+|-- 05_logo_crops/crops/           # Cropped-logo evaluation set
+|-- 06_prompt_library_277/         # 277-brand prompt library
+|-- 07_normal_urls_testb.csv       # Brand-to-official-domain mapping
+`-- 08_brands_overlap.csv          # Seen/novel brand split table
 ```
-
 **Download:** TODO — add public download URL, version, and SHA-256 checksum.
 
 ### PhishIntention local layout
 
 ```
-data/phishintention/
+data/PhishIntention/
 ├── 277_brand_pages/                   # Brand reference library
 ├── Logo_train/                        # Logo-detection train/test annotations
 ├── benign_25k/                        # Benign webpage screenshots + URLs
@@ -116,7 +100,7 @@ data/phishintention/
 ### PhishEval local layout
 
 ```
-data/phisheval/
+data/PhishEval/
 ├── perturbated_dataset/               # 6 perturbation attack types
 │   ├── SRNet/
 │   ├── Swin/
@@ -140,22 +124,21 @@ Model weights are **not included** in this repository. Place them under `models/
 
 | File | Purpose | Expected path |
 |---|---|---|
-| `logo_detector.pth` | DINO logo detector (MMDetection) | `models/vlbrandphish/logo_detector.pth` |
-| `brand_recognizer.pt` | SigLIP brand recognizer | `models/vlbrandphish/brand_recognizer.pt` |
+| `detector.pth` | DINO logo detector (MMDetection) | `models/vlbrandphish/detector.pth` |
+| `brand_identify.pt` | SigLIP brand recognizer | `models/vlbrandphish/brand_identify.pt` |
 | `patched_config.py` | DINO detector configuration | `models/vlbrandphish/patched_config.py` |
 | SigLIP base model | Hugging Face SigLIP files (config.json, etc.) | `models/vlbrandphish/siglip-base-patch16-224/` |
 
-Download the VLBrandPhish detector, brand recognizer, and detector configuration from the [VLBrandPhish Hugging Face repository](https://huggingface.co/VLBrandPhish/vlbrandphish). Save them under `models/vlbrandphish/` using the expected names above:
+Download the VLBrandPhish detector, brand recognizer, and detector configuration from the [VLBrandPhish Hugging Face repository](https://huggingface.co/VLBrandPhish/vlbrandphish). Save them under `models/vlbrandphish/` with their original filenames:
 
 ```bash
 mkdir -p models/vlbrandphish
-curl -L https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/detector.pth?download=true -o models/vlbrandphish/logo_detector.pth
-curl -L https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/brand_identify.pt?download=true -o models/vlbrandphish/brand_recognizer.pt
+curl -L https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/detector.pth?download=true -o models/vlbrandphish/detector.pth
+curl -L https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/brand_identify.pt?download=true -o models/vlbrandphish/brand_identify.pt
 curl -L https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/patched_config.py?download=true -o models/vlbrandphish/patched_config.py
 ```
 
 Direct downloads: [`detector.pth`](https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/detector.pth?download=true), [`brand_identify.pt`](https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/brand_identify.pt?download=true), and [`patched_config.py`](https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/patched_config.py?download=true).
-
 ### PhishIntention (baseline)
 
 Official release at https://github.com/lindsey98/PhishIntention. Expected under `models/phishintention/`:
@@ -194,7 +177,7 @@ Runs the DINO detector on webpage screenshots, retaining the top-3 logo bounding
 ```bash
 python inference/detection/command.py \
   --det-config models/vlbrandphish/patched_config.py \
-  --det-checkpoint models/vlbrandphish/logo_detector.pth \
+  --det-checkpoint models/vlbrandphish/detector.pth \
   --benign-root data/VLBrandPhish/02_bengin_12K \
   --phish-root data/VLBrandPhish/01_phish_12K \
   --out-csv outputs/detection/logo_detection_top3.csv \
@@ -210,7 +193,7 @@ Consumes the detection CSV, identifies brands using the SigLIP encoder, and make
 ```bash
 python inference/run.py \
   --det-csv outputs/detection/logo_detection_top3.csv \
-  --brand-ckpt models/vlbrandphish/brand_recognizer.pt \
+  --brand-ckpt models/vlbrandphish/brand_identify.pt \
   --model-dir models/vlbrandphish/siglip-base-patch16-224 \
   --logo-library-dir data/VLBrandPhish/03_logo_reference_library/logo_reference_library \
   --dbi5-dir data/VLBrandPhish/04_prompt_libraries_152/visual_all \
