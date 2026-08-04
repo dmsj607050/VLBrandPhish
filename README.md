@@ -142,7 +142,19 @@ Model weights are **not included** in this repository. Place them under `models/
 |---|---|---|
 | `logo_detector.pth` | DINO logo detector (MMDetection) | `models/vlbrandphish/logo_detector.pth` |
 | `brand_recognizer.pt` | SigLIP brand recognizer | `models/vlbrandphish/brand_recognizer.pt` |
+| `patched_config.py` | DINO detector configuration | `models/vlbrandphish/patched_config.py` |
 | SigLIP base model | Hugging Face SigLIP files (config.json, etc.) | `models/vlbrandphish/siglip-base-patch16-224/` |
+
+Download the VLBrandPhish detector, brand recognizer, and detector configuration from the [VLBrandPhish Hugging Face repository](https://huggingface.co/VLBrandPhish/vlbrandphish). Save them under `models/vlbrandphish/` using the expected names above:
+
+```bash
+mkdir -p models/vlbrandphish
+curl -L https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/detector.pth?download=true -o models/vlbrandphish/logo_detector.pth
+curl -L https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/brand_identify.pt?download=true -o models/vlbrandphish/brand_recognizer.pt
+curl -L https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/patched_config.py?download=true -o models/vlbrandphish/patched_config.py
+```
+
+Direct downloads: [`detector.pth`](https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/detector.pth?download=true), [`brand_identify.pt`](https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/brand_identify.pt?download=true), and [`patched_config.py`](https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/patched_config.py?download=true).
 
 ### PhishIntention (baseline)
 
