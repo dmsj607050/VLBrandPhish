@@ -506,7 +506,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     default_siglip = _first_existing(
         os.environ.get("VLBRANDPHISH_SIGLIP_MODEL_DIR", ""),
-        REPO_ROOT / "models" / "siglip-base-patch16-224",
+        REPO_ROOT / "models" / "vlbrandphish" / "siglip-base-patch16-224",
     )
     default_ckpt = _first_existing(
         os.environ.get("VLBRANDPHISH_BRAND_CKPT", ""),
@@ -515,10 +515,10 @@ def main(argv: list[str] | None = None) -> None:
     )
 
     parser = argparse.ArgumentParser(description="Brand identification: 3-method comparison")
-    parser.add_argument("--crop-dir", default=os.path.join(default_dataset, "08_open_set_logo_crops_1352_seed20260501", "crops"))
+    parser.add_argument("--crop-dir", default=os.path.join(default_dataset, "05_logo_crops", "crops"))
     parser.add_argument("--reference-dir", default=os.path.join(default_dataset, "03_logo_reference_library", "logo_reference_library"))
-    parser.add_argument("--prompt-dir", default=os.path.join(default_dataset, "06_generated_prompt_libraries", "visual_all"))
-    parser.add_argument("--normal-urls-csv", default=os.path.join(default_dataset, "04_normal_urls_testb.csv"))
+    parser.add_argument("--prompt-dir", default=os.path.join(default_dataset, "04_prompt_libraries_152", "visual_all"))
+    parser.add_argument("--normal-urls-csv", default=os.path.join(default_dataset, "07_normal_urls_testb.csv"))
     parser.add_argument("--checkpoint", default=default_ckpt)
     parser.add_argument("--model-dir", default=default_siglip)
     parser.add_argument("--ppd-weights", default=str(PPD_WEIGHTS))

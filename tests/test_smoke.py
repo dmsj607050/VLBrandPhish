@@ -59,6 +59,7 @@ DEFAULT_BRAND_CKPT = _first_existing(
 
 DEFAULT_SIGLIP_DIR = _first_existing(
     os.environ.get("VLBRANDPHISH_SIGLIP_MODEL_DIR", ""),
+    REPO_ROOT / "models" / "vlbrandphish" / "siglip-base-patch16-224",
     REPO_ROOT / "models" / "siglip-base-patch16-224",
 )
 
@@ -272,7 +273,6 @@ def _resolve_prompt_dir(dataset_root: Path) -> Optional[Path]:
     """Find the prompt-library directory by priority."""
     candidates = [
         dataset_root / "04_prompt_libraries_152" / "visual_all",
-        dataset_root / "06_generated_prompt_libraries" / "visual_all",
     ]
     for c in candidates:
         if c.is_dir():
