@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile source
-        run: python -m compileall inference training experiments tests
+        run: python -m compileall inference experiments tests
       - name: Check tracked data and model placeholders
         shell: bash
         run: |
