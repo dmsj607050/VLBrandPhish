@@ -16,8 +16,15 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile source
-        run: python -m compileall inference training experiments scripts tests
-      - name: Check tracked artifact hygiene
-        run: python scripts/verify_artifact.py
+        run: python -m compileall inference training experiments tests
+      - name: Check tracked data and model placeholders
+        shell: bash
+        run: |
+          unexpected="$(git ls-files -- data models | grep -vE '^(data|models)/\.gitkeep$' || true)"
+          if [ -n "$unexpected" ]; then
+            echo "Only data/.gitkeep and models/.gitkeep may be tracked:"
+            echo "$unexpected"
+            exit 1
+          fi
       - name: Run dependency-free unit tests
-        run: python -m unittest discover -s tests/unit -v
+        run: python -m unittest discover -s tests -p "test_*.py" -v

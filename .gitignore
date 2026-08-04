@@ -22,8 +22,11 @@ credentials*.json
 secrets*.json
 
 # Data, model weights, run outputs, and caches
-data/
-models/
+# Keep the directory skeleton in Git while excluding datasets and model files.
+/data/*
+!/data/.gitkeep
+/models/*
+!/models/.gitkeep
 outputs/
 *.pt
 *.pth
