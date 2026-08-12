@@ -1,0 +1,26 @@
+# Common defaults shared by all stage configs.
+# Individual configs inherit these via the ``inherits`` field and override as needed.
+seed: 42
+deterministic: true
+prompt_ensemble: "mean"
+
+amp: true
+workers: 4
+log_interval: 50
+grad_clip_norm: 1.0
+grad_accum_steps: 1
+
+weight_decay: 0.05
+min_lr_ratio: 0.05
+
+freeze_vision: "except_last_n"
+train_logit: true
+
+class_aware_sampler: true
+plot_loss_curves: true
+full_eval_interval: 1
+early_stop_min_delta: 0.001
+
+prompts:
+  force_include_brand_name: true
+  fallback_to_simple13: true

@@ -1,0 +1,34 @@
+inherits: base_config.yaml
+
+stage: "stage1"
+model_name: "google/siglip-base-patch16-224"
+
+objective: "pairwise"
+dataset_type: "logo2k"
+data_root: ""
+val_ratio: 0.05
+output_dir: "./outputs_stage1"
+save_each_epoch: false
+
+batch_size: 64
+epochs: 8
+
+lr: 2.0e-5
+warmup_ratio: 0.05
+layer_decay: 0.85
+
+lr_scale_vision: 1.0
+lr_scale_text: 0.1
+lr_scale_logit: 0.1
+
+unfreeze_vision_last_n: 4
+freeze_text: "all"
+
+classes_per_batch: 64
+samples_per_class: 1
+
+proto_refresh_interval: 2
+early_stop_patience: 3
+
+prompts:
+  mode: "simple13"
