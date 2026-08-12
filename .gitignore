@@ -21,14 +21,12 @@ env/
 credentials*.json
 secrets*.json
 
-# Data, model weights, training code, run outputs, and caches
+# Data, model weights, run outputs, and caches
 # Keep the directory skeleton in Git while excluding datasets and model files.
 /data/*
 !/data/.gitkeep
 /models/*
 !/models/.gitkeep
-# Training code stays local and is not part of the public release.
-/training/
 outputs/
 *.pt
 *.pth

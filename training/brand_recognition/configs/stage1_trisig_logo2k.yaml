@@ -1,0 +1,69 @@
+inherits: base_config.yaml
+
+stage: "stage1"
+model_name: "./siglip-base-patch16-224"
+
+objective: "tri_sig"
+dataset_type: "logo2k"
+data_root: ""
+val_ratio: 0.05
+output_dir: "./outputs_stage1_trisig_logo2k"
+save_each_epoch: true
+
+batch_size: 32
+epochs: 8
+
+lr: 3.0e-5
+warmup_ratio: 0.05
+layer_decay: 0.9
+
+lr_scale_vision: 0.5
+lr_scale_text: 0.05
+lr_scale_logit: 0.05
+
+unfreeze_vision_last_n: 4
+freeze_text: "all"
+
+classes_per_batch: 16
+samples_per_class: 2
+
+image_proto_agg: "attention"
+image_proto_agg_tau: 0.07
+image_proto_max_images_per_class: 8
+# Fusion weights for combining image and text logits during training.
+# Default 0.8 / 0.2 matches the reported VLBrandPhish configuration.
+image_weight: 0.8
+text_weight: 0.2
+# 0 = never rebuild image prototypes after initial build.
+# Stage-1 freezes text and only unfreezes the last 4 vision layers, so the
+# drift is small; keeping prototypes fixed matches the reported experiment.
+# For a fresh run with heavier vision tuning, set this to 3-5.
+image_proto_rebuild_interval: 0
+
+loss_weights:
+  lambda_cls: 1.0
+  lambda_it: 0.3
+  lambda_ii: 0.3
+  lambda_consistency: 0.03
+  lambda_margin: 0.03
+
+losses:
+  cls: true
+  it: true
+  ii: true
+  consistency: true
+  adaptive_margin: true
+
+adaptive_margin:
+  min_margin: 0.0
+  max_margin: 0.15
+
+label_smoothing: 0.05
+proto_refresh_interval: 3
+early_stop_patience: 3
+
+prompts:
+  mode: "simple13"
+
+init_from: "./outputs_stage1/best.pt"
+resume: ""

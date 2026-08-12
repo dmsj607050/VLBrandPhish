@@ -20,6 +20,9 @@ VLBrandPhish-main/
 |   |-- recognition/               # Stage 2 feature extraction and fusion
 |   |-- runtime/                   # Default paths, caching, and diagnostics
 |   `-- run.py                     # Stage 2 end-to-end CLI
+|-- training/
+|   |-- brand_recognition/         # SigLIP training and configs
+|   `-- logo_detection/            # DINO detector training and evaluation
 |-- experiments/                   # Paper experiment runners
 |-- tests/test_smoke.py            # Reproducibility environment smoke test
 |-- data/                          # External datasets only; contents are excluded from Git
