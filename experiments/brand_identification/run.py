@@ -1,11 +1,11 @@
 """Brand identification on the unified cropped-logo set.
 
-Research question: RQ2 — Brand Identification
+Research question: RQ1 — Brand Identification
 Dataset: Cropped-logo eval set (~2,700 crops: phish + benign, ~100 brands)
 Metric: Match Acc (benign → benign, phish → correct target brand)
 
 Methods:
-  - VLBrandPhish:    SigLIP encoder, 0.8*img + 0.2*txt fusion, threshold 0.62
+  - VLBrandPhish:    SigLIP encoder, 0.4*img + 0.6*txt fusion, threshold 0.4
   - PhishIntention:  BiT-M-R50x1 + OCR(ASTER) siamese, threshold 0.87
   - PhishPedia:      BiT-M-R50x1 siamese (image-only), threshold 0.87
 """
@@ -40,6 +40,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from inference.components.brand.encoders import CLIPEncoder
+from inference.runtime.protocol import FIXED_IMAGE_WEIGHT, FIXED_TEXT_WEIGHT, FIXED_DECISION_THRESHOLD
 from inference.components.brand.naming import normalize_brand_key
 from inference.components.brand.repository import (
     BrandRepository,
@@ -176,7 +177,7 @@ def compute_match_accuracy_generic(
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  VLBrandPhish evaluator (SigLIP, 0.8*img + 0.2*txt, threshold 0.62)
+#  VLBrandPhish evaluator (SigLIP, paper operating point)
 # ═══════════════════════════════════════════════════════════════════════
 
 def evaluate_vlbrandphish(
@@ -192,10 +193,10 @@ def evaluate_vlbrandphish(
     text_batch_size: int = 256,
     max_logo_per_brand: int = -1,
     brand_text_mode: str = "dbi5",
-    threshold: float = 0.62,
+    threshold: float = FIXED_DECISION_THRESHOLD,
 ) -> dict:
     print("\n" + "=" * 60)
-    print("VLBrandPhish (SigLIP, 0.8*img+0.2*txt, threshold=0.62)")
+    print(f"VLBrandPhish (SigLIP, {FIXED_IMAGE_WEIGHT}*img+{FIXED_TEXT_WEIGHT}*txt, threshold={threshold})")
     print("=" * 60)
 
     t0 = time.perf_counter()
@@ -278,7 +279,7 @@ def evaluate_vlbrandphish(
 
     # Compute similarities
     sim_img, sim_txt = score_query_features(crop_features, repo)
-    scores = 0.8 * sim_img + 0.2 * sim_txt
+    scores = FIXED_IMAGE_WEIGHT * sim_img + FIXED_TEXT_WEIGHT * sim_txt
 
     # Evaluate
     best_scores, best_indices = scores.max(dim=1)
@@ -531,7 +532,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--max-logo-per-brand", type=int, default=-1)
     parser.add_argument("--cache-dir", default="")
     parser.add_argument("--brand-text-mode", default="dbi5")
-    parser.add_argument("--vlp-threshold", type=float, default=0.62)
+    parser.add_argument("--vlp-threshold", type=float, default=FIXED_DECISION_THRESHOLD)
     parser.add_argument("--ppd-threshold", type=float, default=0.87)
     parser.add_argument("--pi-threshold", type=float, default=0.87)
     args = parser.parse_args(argv)

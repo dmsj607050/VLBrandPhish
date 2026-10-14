@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Section | Appendix -- prompt configuration study |
-| Setting | Cropped-logo eval set (~2,700 crops), 6 prompt configurations at fixed 0.8 img + 0.2 txt fusion |
+| Setting | Cropped-logo eval set (~2,700 crops), 6 prompt configurations at fixed 0.4 img + 0.6 txt fusion |
 | Metrics | AUROC, Brand Top-1, F1 (plus Match Acc, Precision, Recall) |
 | Paper table(s) | Prompt ablation table |
 

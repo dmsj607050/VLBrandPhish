@@ -2,10 +2,10 @@
 
 | | |
 | --- | --- |
-| Research question | RQ2 -- brand identification accuracy |
+| Research question | RQ1 -- brand identification accuracy |
 | Dataset | Cropped-logo eval set (~2,700 crops, ~100 brands) |
-| Metrics | Match Acc (benign→benign, phish→correct target brand) |
-| Methods | VLBrandPhish (0.8 img + 0.2 txt, thr=0.62), PhishIntention (BiT+OCR, thr=0.87), PhishPedia (BiT, thr=0.87) |
+| Metrics | Match Acc (benign to benign, phish to correct target brand) |
+| Methods | VLBrandPhish (0.4 img + 0.6 txt, thr=0.4), PhishIntention (BiT+OCR, thr=0.87), PhishPedia (BiT, thr=0.87) |
 
 ## Run
 

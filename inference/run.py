@@ -99,7 +99,7 @@ def main() -> None:
         "SigLIP sentencepiece tokenizer (useful on Windows where spm may crash).",
     )
 
-    parser.add_argument("--threshold", type=float, default=FIXED_DECISION_THRESHOLD, help="Decision threshold (default: 0.62).")
+    parser.add_argument("--threshold", type=float, default=FIXED_DECISION_THRESHOLD, help="Decision threshold (paper default: 0.4).")
     parser.add_argument("--max-samples", type=int, default=-1)
     parser.add_argument("--topk", type=int, default=1, help="How many detector boxes to keep per sample.")
     parser.add_argument("--max-logo-per-brand", type=int, default=-1)

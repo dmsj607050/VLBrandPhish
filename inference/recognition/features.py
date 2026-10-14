@@ -16,12 +16,7 @@ from ..data.image_paths import crop_logo_region, resolve_image_path
 from ..decision.domain import decide_url_policy, registered_domain
 from ..runtime.progress import iter_with_progress
 from ..runtime.types import FixedFusionOutput, PrecomputedData, QueryFeatureData
-
-
-# This is the only inference fusion rule used by VLBrandPhish.
-FIXED_IMAGE_WEIGHT = 0.8
-FIXED_TEXT_WEIGHT = 1.0 - FIXED_IMAGE_WEIGHT
-FIXED_DECISION_THRESHOLD = 0.62
+from ..runtime.protocol import FIXED_IMAGE_WEIGHT, FIXED_TEXT_WEIGHT, FIXED_DECISION_THRESHOLD
 
 
 def precompute_query_features(

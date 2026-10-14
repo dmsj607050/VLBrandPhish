@@ -45,7 +45,7 @@ def main() -> None:
     parser.add_argument("--det-checkpoint", type=str, default=defaults.detector_ckpt)
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--det-score-thr", type=float, default=0.05)
-    parser.add_argument("--topk", type=int, default=3)
+    parser.add_argument("--topk", type=int, default=1)
 
     parser.add_argument("--benign-root", type=str, default=defaults.benign_root)
     parser.add_argument("--phish-root", type=str, default=defaults.phish_root)

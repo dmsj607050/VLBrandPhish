@@ -14,7 +14,7 @@ Metrics: Precision, Recall, F1, AUROC, AP, TPR@FPR<=1%, Match Acc.
    normalisation and ``normal_urls.csv`` lookup, does not map to one of the 277
    reference brands *that has a non-empty domain list* (=> ``canonical_to_domains``).
 
-Final clean counts: **24,532 phishing + 21,974 benign = 46,506**.
+Final clean counts: **24,532 phishing + 21,973 benign = 46,505**.
 
 Raw screenshots live under::
 
@@ -53,10 +53,10 @@ from experiments._shared.e2e import (
 
 
 # ----- Shared asset defaults -----
-PI_TEST_ROOT = _first_existing(
+PI_TEST_ROOT = Path(_first_existing(
     os.environ.get("VLBRANDPHISH_PI_TEST_ROOT", ""),
     REPO_ROOT / "data" / "PhishIntention" / "test",
-)
+))
 DEFAULT_PHISH_ROOT = PI_TEST_ROOT / "phish_sample_30k"
 DEFAULT_BENIGN_ROOT = PI_TEST_ROOT / "benign_25k"
 DEFAULT_LOGO_LIBRARY_DIR = _first_existing(
@@ -262,10 +262,11 @@ def _patch_parser_defaults(parser: argparse.ArgumentParser) -> None:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        description="RQ1: VLBrandPhish end-to-end on the PhishIntention dataset (N=46,506)."
+        description="RQ1: VLBrandPhish end-to-end on the PhishIntention dataset (N=46,505)."
     )
     add_e2e_arguments(parser)
     _patch_parser_defaults(parser)
+    parser.set_defaults(url_policy_mode="phishintention")
     parser.add_argument(
         "--noncrp-txt",
         default=str(DEFAULT_NONCRP_TXT),
@@ -275,7 +276,7 @@ def main(argv: list[str] | None = None) -> None:
         "--max-benign",
         type=int,
         default=-1,
-        help="Deterministic benign limit; -1 = all (21,974).",
+        help="Deterministic benign limit; -1 = all (21,973).",
     )
     parser.add_argument(
         "--max-phish",
@@ -312,7 +313,7 @@ def main(argv: list[str] | None = None) -> None:
         "name": "VLBP-PhishIntention / overall",
         "filtering": {
             "phish_noncrp_excluded": len(_load_noncrp_keys(args.noncrp_txt)),
-            "phish_aligned_brands_only": "phish_key→canonical via normal_urls.csv, canonical must have non-empty domain list",
+            "phish_aligned_brands_only": "phish_key to canonical via normal_urls.csv, canonical must have non-empty domain list",
             "benign_info_txt_required": True,
             "benign_empty_url_excluded": True,
         },

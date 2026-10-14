@@ -392,7 +392,7 @@ def run_minimal_inference(
         "--device",             device,
         "--topk",               "1",
         "--url-policy-mode",    "official_plus_overrides_no_whitelist",
-        "--threshold",          "0.62",
+        "--threshold",          "0.4",
         "--out-dir",            str(out_dir),
         "--no-progress",
     ]

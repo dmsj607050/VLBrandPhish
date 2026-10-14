@@ -2,7 +2,7 @@
 
 Official code for **VLBrandPhish**, a visual-language, brand-aware phishing-detection system.
 
-The method works in two stages: (1) a DINO-based logo detector localizes brand logos in webpage screenshots, and (2) a SigLIP-based brand recognizer identifies the brand using a fixed 0.8 image / 0.2 text fusion rule, then cross-references the detected brand's official domains against the page URL to make the phishing decision (threshold 0.62).
+The method works in two stages: (1) a DINO-based logo detector localizes brand logos in webpage screenshots, and (2) a SigLIP-based brand recognizer identifies the brand using a fixed 0.4 image / 0.6 text fusion rule, then cross-references the detected brand's official domains against the page URL to make the phishing decision (threshold 0.4).
 
 ---
 
@@ -62,7 +62,7 @@ Datasets are **not included** in this repository (too large; some require redist
 | Dataset | Size | Content | Expected path |
 |---|---|---|---|
 | **VLBP-Set** | ~15 GB | 12,801 phishing + 12,187 benign screenshots (152 brands); logo reference library; DBI text prompts; cropped-logo eval set | `data/VLBrandPhish/` |
-| **PhishIntention** | ~49 GB | 24,532 phishing + 21,974 benign; 277-brand logo library; logo-detection annotations | `data/PhishIntention/` |
+| **PhishIntention** | ~49 GB | 24,532 phishing + 21,973 benign; 277-brand logo library; logo-detection annotations | `data/PhishIntention/` |
 | **PhishEval** | ~21 GB | Adversarial samples: 13 visible manipulations + 6 perturbation attacks | `data/PhishEval/` |
 | **PhishPedia logo** | ~46 GB | Additional logo-detection test set (merged with PhishIntention's) | `data/Phishpedia/` |
 
@@ -213,11 +213,12 @@ The fusion and decision are **fixed** (no parameter search):
 
 | Parameter | Value |
 |---|---|
-| Image weight | 0.8 |
-| Text weight | 0.2 |
-| Decision threshold | 0.62 |
+| Image weight | 0.4 |
+| Text weight | 0.6 |
+| Decision threshold | 0.4 |
+| Detector candidates | Top-1 (highest-confidence box) |
 
-A sample is predicted as phishing only when: a logo is detected, the fused score ≥ 0.62, and the page domain does not match the predicted brand's official domain.
+A sample is predicted as phishing only when: a logo is detected, the fused score ≥ 0.4, and the page domain does not match the predicted brand's official domain.
 
 ### Data flow
 
@@ -228,7 +229,7 @@ webpage screenshots + URLs
 Stage 1: detection/command.py    ← DINO detector
         │
         ▼
-logo_detection_top3.csv
+logo_detection_top3.csv  (legacy three-slot format; Top-1 fills only slot 1)
         │
         ▼
 Stage 2: run.py                  ← SigLIP encoder + brand library + domain verification
@@ -241,7 +242,7 @@ predictions.csv + metrics.json + summary.json
 
 ## Reproducing experiments
 
-All experiments are manifest-driven two-stage runners. They share a common execution engine in `experiments/_shared/e2e.py` and differ only in sample selection. Every run fixes image weight to 0.8, text weight to 0.2, and threshold to 0.62.
+Webpage detection experiments are manifest-driven two-stage runners. They share a common execution engine in `experiments/_shared/e2e.py` and differ only in sample selection. Ordinary detection runs fix image weight to 0.4, text weight to 0.6, and threshold to 0.4.
 
 ### RQ1 — Overall phishing detection
 
@@ -257,7 +258,7 @@ python experiments/overall_vlbp/run.py
 python experiments/overall_phishintention/run.py
 ```
 
-### RQ2 — Logo detection & brand identification
+#### Logo detection & brand identification (RQ1)
 
 **Logo detection evaluation:**
 
@@ -271,7 +272,7 @@ python experiments/logo_detection/run.py
 python experiments/brand_identification/run.py
 ```
 
-### RQ3 — Cross-time & cross-brand stability
+### RQ2 — Cross-time & cross-brand stability
 
 **Cross-time (48 seen brands, recent webpages):**
 
@@ -285,13 +286,18 @@ python experiments/cross_time/run.py
 python experiments/cross_brand/run.py
 ```
 
-### RQ4 — Adversarial robustness
+### RQ3 — Adversarial robustness
 
 ```bash
 python experiments/adversarial_robustness/run.py
 ```
 
-### Ablations
+### RQ4 — Fusion weights & reference-logo budgets
+
+The cached Top-1 weight sweep and its aggregate paper results are documented in
+[`weight_ablation`](experiments/ablations/weight_ablation/README.md).
+
+### Additional ablations
 
 ```bash
 # Branch ablation (image-only / fusion / text-only)
@@ -306,7 +312,7 @@ python experiments/ablations/prompt_ablation/run.py
 
 ### Common options
 
-All experiment runners accept:
+The manifest-driven webpage detection runners accept:
 
 | Option | Description |
 |---|---|
@@ -345,3 +351,21 @@ Use `--skip-inference` to check only environment/data/models without running the
 MIT License — see [LICENSE](LICENSE).
 
 **Citation:** TODO — add paper title, authors, venue, year, and DOI/arXiv link.
+
+### Paper configuration and cached weight sweep
+
+The paper operating point is centralized in `inference/runtime/protocol.py`.
+Ordinary runs keep one detector box (Top-1), use image/text weights 0.4/0.6, and
+apply threshold 0.4. PhishIntention uses the base domain policy; VLBP evaluations
+use the extended policy. Saved runs record these settings and cannot be resumed
+or reused under a different operating point. Start a new output directory for
+historical 0.8/0.2, threshold-0.62 or Top-3 runs.
+
+For the webpage fusion-weight scan, see
+[`experiments/ablations/weight_ablation`](experiments/ablations/weight_ablation/README.md).
+It uses frozen feature caches and validates the default point against saved
+predictions before accepting the scan. Threshold optimization in this ablation
+is exploratory and does not change the fixed operating point of the main experiments.
+
+The CLI name `dbi5` and legacy directory names remain compatible with existing
+assets; the paper calls the brand-name/color/composition/style descriptions DBI-4.

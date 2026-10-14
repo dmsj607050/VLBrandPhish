@@ -847,7 +847,7 @@ def score_query_features(
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Return image and text similarities for every query crop and brand.
 
-    The fixed 0.8/0.2 fusion is intentionally applied later in
+    The fixed 0.4/0.6 fusion is intentionally applied later in
     ``recognition.features`` after scores have been aggregated per screenshot.
     """
     if query_feats.ndim != 2:

@@ -1,11 +1,11 @@
-"""Branch ablation: image-only vs text-only vs 0.8*img + 0.2*txt fusion.
+"""Branch ablation: image-only vs text-only vs 0.4*img + 0.6*txt fusion.
 
 Dataset: ~2,700 cropped logos (phish + benign, ~100 brands)
     at data/VLBrandPhish/05_logo_crops/crops
 
 Evaluates 3 configurations:
     image_weight=1.0  (image branch only)
-    image_weight=0.8  (0.8 img + 0.2 text, default public inference)
+    image_weight=0.4  (0.4 img + 0.6 text, paper inference)
     image_weight=0.0  (text branch only)
 
 Metrics: Match Acc, AUROC, Brand Top-1, F1, Precision, Recall
@@ -183,7 +183,7 @@ def evaluate_branch(
     device: str,
     cache_dir: str,
     image_weight: float,
-    threshold: float = 0.62,
+    threshold: float = 0.4,
     image_batch_size: int = 64,
     text_batch_size: int = 256,
     max_logo_per_brand: int = -1,
@@ -360,8 +360,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--normal-urls-csv", default=os.path.join(default_data_root, "07_normal_urls_testb.csv"))
     parser.add_argument("--checkpoint", default=default_ckpt)
     parser.add_argument("--model-dir", default=default_siglip)
-    parser.add_argument("--image-weights", default="1.0,0.8,0.0", help="Comma-separated image weights")
-    parser.add_argument("--threshold", type=float, default=0.62)
+    parser.add_argument("--image-weights", default="1.0,0.4,0.0", help="Comma-separated image weights")
+    parser.add_argument("--threshold", type=float, default=0.4)
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--out-dir", default="")
     parser.add_argument("--cache-dir", default="")

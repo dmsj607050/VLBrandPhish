@@ -871,7 +871,7 @@ def main() -> None:
             brand_ckpt=brand_ckpt,
             det_csv=det_csv,
             max_samples=int(max_samples),
-            topk=int(base_cfg.get('topk', 3)),
+            topk=int(base_cfg.get('topk', 1)),
             benign_root=benign_root,
             phish_root=phish_root,
         )

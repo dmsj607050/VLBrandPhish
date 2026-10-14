@@ -77,7 +77,7 @@ def main() -> None:
     parser.add_argument("--det-checkpoint", required=True)
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--det-score-thr", type=float, default=0.05)
-    parser.add_argument("--topk", type=int, default=3)
+    parser.add_argument("--topk", type=int, default=1)
     parser.add_argument("--progress", action="store_true")
     args = parser.parse_args()
 

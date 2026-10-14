@@ -5,7 +5,7 @@
 | Research question | RQ1 -- overall end-to-end phishing detection on the VLBP official dataset |
 | Dataset | All samples under `01_phish_12K` and `02_bengin_12K` (152 brands, no filtering) |
 | Pipeline | Stage 1 (DINO logo detection) + Stage 2 (SigLIP brand retrieval + URL decision) |
-| Fixed decision | image_weight=0.8, text_weight=0.2, threshold=0.62 |
+| Fixed decision | image_weight=0.4, text_weight=0.6, threshold=0.4 |
 | Expected counts | **12,801 phishing + 12,164 benign = 24,965** (23 benign dirs lack `shot.png`) |
 
 ## Defaults (baked into `run.py`)
