@@ -1,0 +1,1 @@
+New PDOS experiment outputs are written under this directory (or the output root passed on the command line). Earlier experiment tables, manifests and predictions remain in the source workspace recorded in ../SOURCE_MANIFEST.md.

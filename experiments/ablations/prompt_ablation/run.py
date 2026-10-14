@@ -11,7 +11,7 @@ Evaluates 6 prompt configurations (Table 13 in the paper):
     brand_plus_industry     — Brand name + industry
     visual_all              — Brand name + color + content composition + style
 
-All runs use fixed fusion: 0.8 * image + 0.2 * text, threshold 0.62.
+All runs use the current fixed fusion: 0.4 * image + 0.6 * text, threshold 0.4.
 
 Metrics: AUROC↑, Brand Top-1↑, F1↑ (plus Match Acc, Precision, Recall for completeness)
 """
@@ -223,8 +223,8 @@ def evaluate_prompt_config(
     cache_dir: str,
     config_name: str,
     config_display: str,
-    image_weight: float = 0.8,
-    threshold: float = 0.62,
+    image_weight: float = 0.4,
+    threshold: float = 0.4,
     image_batch_size: int = 64,
     text_batch_size: int = 256,
     max_logo_per_brand: int = -1,
@@ -400,12 +400,12 @@ def main(argv: list[str] | None = None) -> None:
     default_data_root = str(REPO_ROOT / "data" / "VLBrandPhish")
     default_ckpt = _first_existing(
         os.environ.get("VLBRANDPHISH_BRAND_CKPT", ""),
+        REPO_ROOT / "models" / "vlbrandphish" / "brand_recognition_siglip_text4_vision2_full277.pt",
         REPO_ROOT / "models" / "vlbrandphish" / "brand_encoder_inference.pt",
-        REPO_ROOT / "models" / "vlbrandphish" / "brand_identify.pt",
     )
     default_siglip = _first_existing(
         os.environ.get("VLBRANDPHISH_SIGLIP_MODEL_DIR", ""),
-        REPO_ROOT / "models" / "siglip-base-patch16-224",
+        REPO_ROOT / "models" / "vlbrandphish" / "siglip-base-patch16-224",
     )
     default_prompt_root = str(REPO_ROOT / "data" / "VLBrandPhish" / "04_prompt_libraries_152")
 
@@ -418,8 +418,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--model-dir", default=default_siglip)
     parser.add_argument("--configs", default=",".join(n for n, _ in PROMPT_CONFIGS),
                         help=f"Comma-separated prompt configs (default: all 6)")
-    parser.add_argument("--image-weight", type=float, default=0.8)
-    parser.add_argument("--threshold", type=float, default=0.62)
+    parser.add_argument("--image-weight", type=float, default=0.4)
+    parser.add_argument("--threshold", type=float, default=0.4)
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--out-dir", default="")
     parser.add_argument("--cache-dir", default="")

@@ -1,0 +1,120 @@
+stage: "stage2"
+seed: 42
+
+model_name: "../../models/vlbrandphish/siglip-base-patch16-224"
+prompt_ensemble: "mean"
+
+amp: true
+workers: 4
+log_interval: 50
+grad_clip_norm: 1.0
+
+objective: "tri_sig"
+dataset_type: "flat"
+data_root: ""
+val_ratio: 0.1
+flat_numeric_suffix_only: false
+flat_excluded_filenames:
+  - homepage_html.txt
+  - homepage.png
+  - login_html.txt
+  - loginpage.png
+  - tfidf.csv
+
+output_dir: "./outputs_stage2_routerfusion"
+plot_loss_curves: true
+save_each_epoch: false
+
+batch_size: 32
+epochs: 20
+grad_accum_steps: 1
+
+class_aware_sampler: true
+classes_per_batch: 16
+samples_per_class: 2
+
+lr: 5.0e-5
+weight_decay: 0.05
+warmup_ratio: 0.1
+min_lr_ratio: 0.05
+layer_decay: 0.9
+
+lr_scale_vision: 0.5
+lr_scale_text: 0.08
+lr_scale_gate: 2.0
+lr_scale_router: 1.2
+lr_scale_adapter: 2.0
+lr_scale_logit: 0.05
+
+freeze_vision: "except_last_n"
+unfreeze_vision_last_n: 6
+
+freeze_text: "except_last_n"
+unfreeze_text_last_n: 2
+train_logit: true
+
+use_adapter: true
+adapter_hidden_dim: 256
+adapter_dropout: 0.15
+train_adapter: true
+
+router_hidden_dim: 256
+router_dropout: 0.20
+train_router: true
+
+image_proto_agg: "attention"
+image_proto_agg_tau: 0.07
+image_proto_max_images_per_class: 8
+use_adapter_for_prototypes: true
+image_proto_rebuild_interval: 0
+
+loss_weights:
+  lambda_cls: 1.0
+  lambda_it: 0.3
+  lambda_ii: 0.3
+  lambda_consistency: 0.03
+  lambda_margin: 0.03
+  lambda_router: 0.005
+  lambda_uncertainty: 0.01
+
+losses:
+  cls: true
+  it: true
+  ii: true
+  consistency: true
+  adaptive_margin: true
+  router: true
+  uncertainty: true
+
+adaptive_margin:
+  min_margin: 0.0
+  max_margin: 0.2
+
+router_supervision: "oracle_ce"
+router_oracle_temperature: 0.7
+
+label_smoothing: 0.05
+full_eval_interval: 1
+early_stop_patience: 8
+early_stop_min_delta: 0.001
+
+prompts:
+  mode: "hybrid"
+  force_include_brand_name: true
+  fallback_to_simple13: true
+  max_prompts_per_brand: 12
+  templates:
+    - "{brand}"
+    - "{brand} logo"
+    - "official logo of {brand}"
+    - "{brand} brand logo"
+    - "{brand} wordmark"
+    - "{brand} logomark"
+    - "a clean logo of {brand}"
+    - "cropped {brand} logo"
+    - "small {brand} logo"
+    - "{brand} logo on a website header"
+    - "{brand} logo in a webpage screenshot"
+    - "{brand} logo in navigation bar"
+
+resume: "./outputs_stage1_router_logo2k/best.pt"

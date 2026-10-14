@@ -1,0 +1,10 @@
+Brand-recognition training package manifest
+============================================
+
+Included: train.py, src/*.py, tools/*.py, active training configs, and source config snapshots.
+Current experiment config: stage1_dbi4_text4_vision2.yaml.
+Current model setting: pairwise SigLIP; unfreeze last 4 text blocks and last 2 vision blocks; DBI-4 prompt library; no router or gate.
+
+Excluded from Git: training/validation images, prompt text files, pretrained SigLIP files, initialization checkpoints, trained checkpoints, and run outputs. These are external assets and must be supplied locally.
+
+Source provenance: current project training source archived under model_train/Brand in the experiment workspace.

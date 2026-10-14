@@ -3,7 +3,7 @@
 The runner supports the prepared six PhishEval perturbation attacks already present
 locally and can also construct the visible-manipulation protocol directly from the
 official PhishEval directory.  Every selected screenshot is evaluated by the same
-Stage-1 detector and fixed 0.8/0.2 Stage-2 decision as the other experiments.
+Stage-1 detector and fixed 0.4/0.6 Stage-2 decision as the other experiments.
 """
 
 from __future__ import annotations
@@ -367,6 +367,7 @@ def main(argv: list[str] | None = None) -> None:
         brand_text_mode="ckpt_text_proto_mean",
         brand_checkpoint=_first_existing(
             os.environ.get("VLBRANDPHISH_BRAND_CKPT", ""),
+            REPO_ROOT / "models" / "vlbrandphish" / "brand_recognition_siglip_text4_vision2_full277.pt",
             REPO_ROOT / "models" / "vlbrandphish" / "brand_encoder_inference.pt",
             REPO_ROOT / "models" / "vlbrandphish" / "brand_identify.pt",
         ),

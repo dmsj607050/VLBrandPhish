@@ -1,11 +1,11 @@
-"""Branch ablation: image-only vs text-only vs 0.8*img + 0.2*txt fusion.
+"""Branch ablation: image-only vs text-only vs current 0.4*img + 0.6*txt fusion.
 
 Dataset: ~2,700 cropped logos (phish + benign, ~100 brands)
     at data/VLBrandPhish/05_logo_crops/crops
 
 Evaluates 3 configurations:
     image_weight=1.0  (image branch only)
-    image_weight=0.8  (0.8 img + 0.2 text, default public inference)
+    image_weight=0.4  (0.4 img + 0.6 text, current public inference)
     image_weight=0.0  (text branch only)
 
 Metrics: Match Acc, AUROC, Brand Top-1, F1, Precision, Recall
@@ -17,6 +17,7 @@ import csv
 import json
 import os
 import re
+import shutil
 import sys
 import time
 from datetime import datetime
@@ -49,6 +50,14 @@ from inference.components.brand.repository import (
     build_brand_repository,
     score_query_features,
 )
+
+
+def _link_or_copy_directory(source: str, destination: str) -> None:
+    """Create a portable directory link, falling back to a copy on Windows."""
+    try:
+        os.symlink(source, destination, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        shutil.copytree(source, destination)
 
 
 VALID_EXTS = (".png", ".jpg", ".jpeg", ".bmp", ".webp")
@@ -183,11 +192,11 @@ def evaluate_branch(
     device: str,
     cache_dir: str,
     image_weight: float,
-    threshold: float = 0.62,
+    threshold: float = 0.4,
     image_batch_size: int = 64,
     text_batch_size: int = 256,
     max_logo_per_brand: int = -1,
-    brand_text_mode: str = "dbi5",
+    brand_text_mode: str = "ckpt_text_proto_mean",
 ) -> dict:
     text_weight = 1.0 - image_weight
     label = (
@@ -205,21 +214,19 @@ def evaluate_branch(
     prompt_brands = set()
     for d in os.listdir(prompt_dir):
         dpath = os.path.join(prompt_dir, d)
-        if os.path.isdir(dpath) and any(fn.lower().endswith("_logo_description.txt") for fn in os.listdir(dpath)):
+        if os.path.isdir(dpath) and any(fn.lower().endswith(".txt") for fn in os.listdir(dpath)):
             prompt_brands.add(d)
     common_brands = ref_brands & prompt_brands
     print(f"[branch] Reference={len(ref_brands)}, Prompt={len(prompt_brands)}, Common={len(common_brands)}")
 
     import tempfile
-    import subprocess as sp
     temp_ref = tempfile.mkdtemp(prefix="vlp_ref_")
     temp_prompt = tempfile.mkdtemp(prefix="vlp_prompt_")
     for brand in sorted(common_brands):
         for src_root, dst_root in [(reference_dir, temp_ref), (prompt_dir, temp_prompt)]:
             src = os.path.join(src_root, brand)
             dst = os.path.join(dst_root, brand)
-            sp.call(["cmd", "/c", "mklink", "/J", dst, src],
-                    stdout=sp.DEVNULL, stderr=sp.DEVNULL, shell=True)
+            _link_or_copy_directory(src, dst)
 
     encoder = CLIPEncoder(checkpoint, device=device, model_dir=model_dir)
     print(f"[branch] Encoder loaded (backend={encoder.backend}, dim={encoder.embed_dim})")
@@ -345,30 +352,30 @@ def main(argv: list[str] | None = None) -> None:
     default_data_root = str(REPO_ROOT / "data" / "VLBrandPhish")
     default_ckpt = _first_existing(
         os.environ.get("VLBRANDPHISH_BRAND_CKPT", ""),
+        REPO_ROOT / "models" / "vlbrandphish" / "brand_recognition_siglip_text4_vision2_full277.pt",
         REPO_ROOT / "models" / "vlbrandphish" / "brand_encoder_inference.pt",
-        REPO_ROOT / "models" / "vlbrandphish" / "brand_identify.pt",
     )
     default_siglip = _first_existing(
         os.environ.get("VLBRANDPHISH_SIGLIP_MODEL_DIR", ""),
-        REPO_ROOT / "models" / "siglip-base-patch16-224",
+        REPO_ROOT / "models" / "vlbrandphish" / "siglip-base-patch16-224",
     )
 
     parser = argparse.ArgumentParser(description="Branch ablation: image-only / fusion / text-only")
     parser.add_argument("--crop-dir", default=os.path.join(default_data_root, "05_logo_crops", "crops"))
     parser.add_argument("--reference-dir", default=os.path.join(default_data_root, "03_logo_reference_library", "logo_reference_library"))
-    parser.add_argument("--prompt-dir", default=os.path.join(default_data_root, "04_prompt_libraries_152", "visual_all"))
+    parser.add_argument("--prompt-dir", default=os.path.join(default_data_root, "06_prompt_library_277"))
     parser.add_argument("--normal-urls-csv", default=os.path.join(default_data_root, "07_normal_urls_testb.csv"))
     parser.add_argument("--checkpoint", default=default_ckpt)
     parser.add_argument("--model-dir", default=default_siglip)
-    parser.add_argument("--image-weights", default="1.0,0.8,0.0", help="Comma-separated image weights")
-    parser.add_argument("--threshold", type=float, default=0.62)
+    parser.add_argument("--image-weights", default="1.0,0.4,0.0", help="Comma-separated image weights")
+    parser.add_argument("--threshold", type=float, default=0.4)
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--out-dir", default="")
     parser.add_argument("--cache-dir", default="")
     parser.add_argument("--image-batch-size", type=int, default=64)
     parser.add_argument("--text-batch-size", type=int, default=256)
     parser.add_argument("--max-logo-per-brand", type=int, default=-1)
-    parser.add_argument("--brand-text-mode", default="dbi5")
+    parser.add_argument("--brand-text-mode", default="ckpt_text_proto_mean")
     args = parser.parse_args(argv)
 
     device = args.device if torch.cuda.is_available() else "cpu"

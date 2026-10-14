@@ -1,0 +1,61 @@
+{
+  "inputs": {
+    "query_cache": {
+      "path": "stage2_query_0168edc09ebad482.npz",
+      "sha256": "8e86c5705c9cbb9478134b6608b2a8a8f29484977a41b7ae9de01ee824fd2a26"
+    },
+    "repository_cache": {
+      "path": "brand_repo_45e33ae8df86f56e.pt",
+      "sha256": "be907d18ae2d65709bf886f70560154660200351ab046d79974e69f0bb9eca39"
+    },
+    "metadata_csv": {
+      "path": "per_sample.csv",
+      "sha256": "9aabc0d1a5c9f8225e16f1bf51f52ef7e33d5d4add72b315a080c5cf3505558a"
+    },
+    "normal_urls_csv": {
+      "path": "normal_urls.csv",
+      "sha256": "fce893756cc53851ba06b1d9f623de4a3ff0d8c5284d541285dd3d975eb3c126"
+    },
+    "reference_predictions_csv": {
+      "path": "per_sample.csv",
+      "sha256": "9aabc0d1a5c9f8225e16f1bf51f52ef7e33d5d4add72b315a080c5cf3505558a"
+    },
+    "domain_rules": {
+      "path": "domain.py",
+      "sha256": "ee7a8daf0067d06fedda20dc1a6651e7a7d798855d1ad064c6d2d2eca798df27"
+    }
+  },
+  "script_sha256": "a4104fa410499636a45f0ff141c1e8c7239abeeecd336bf8811dd86c21a29f23",
+  "topk": 1,
+  "source_query_slots": 3,
+  "n": 46505,
+  "phish": 24532,
+  "benign": 21973,
+  "brands": 277,
+  "device": "cuda:0",
+  "url_policy_mode": "phishintention",
+  "reference_check": {
+    "prediction_mismatches": 0,
+    "brand_mismatches": 0,
+    "max_score_delta": 5.364418029785156e-07,
+    "fixed_metrics": {
+      "threshold": 0.4,
+      "tp": 23771,
+      "tn": 21786,
+      "fp": 187,
+      "fn": 761,
+      "precision": 0.9921946740128559,
+      "recall": 0.9689792923528453,
+      "f1": 0.9804495772324191,
+      "match_acc": 0.9642507744986141
+    }
+  },
+  "threshold_grid": [
+    0,
+    1,
+    0.01
+  ],
+  "threshold_selection": "max F1 on the evaluation set; ties prefer precision then higher threshold",
+  "elapsed_seconds": 12.68057272599981,
+  "note": "Input paths reduced to basenames for publication; hashes and validation statistics are unchanged."
+}

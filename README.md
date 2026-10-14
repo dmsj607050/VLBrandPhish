@@ -2,7 +2,7 @@
 
 Official code for **VLBrandPhish**, a visual-language, brand-aware phishing-detection system.
 
-The method works in two stages: (1) a DINO-based logo detector localizes brand logos in webpage screenshots, and (2) a SigLIP-based brand recognizer identifies the brand using a fixed 0.8 image / 0.2 text fusion rule, then cross-references the detected brand's official domains against the page URL to make the phishing decision (threshold 0.62).
+The method works in two stages: (1) a DINO-based logo detector localizes brand logos in webpage screenshots, and (2) the current SigLIP brand recognizer combines image and text evidence with weights 0.4 and 0.6, then checks the predicted brand against the page URL using a fixed 0.4 decision threshold. The current recognizer is trained with the pairwise objective, four unfrozen text blocks, two unfrozen vision blocks, and checkpoint-saved brand text prototypes.
 
 ---
 
@@ -20,9 +20,13 @@ VLBrandPhish-main/
 |   |-- recognition/               # Stage 2 feature extraction and fusion
 |   |-- runtime/                   # Default paths, caching, and diagnostics
 |   `-- run.py                     # Stage 2 end-to-end CLI
+|-- model_train/
+|   |-- Brand/                     # Current SigLIP brand-recognition training source
+|   `-- Logo/                      # Current DINO/Swin localization training source
+|-- baselines/PDOS/                # Project's PDOS reproduction; not official author code
 |-- training/
-|   |-- brand_recognition/         # SigLIP training and configs
-|   `-- logo_detection/            # DINO detector training and evaluation
+|   |-- brand_recognition/         # Earlier/general training implementation
+|   `-- logo_detection/            # Earlier detector-training implementation
 |-- experiments/                   # Paper experiment runners
 |-- tests/test_smoke.py            # Reproducibility environment smoke test
 |-- data/                          # External datasets only; contents are excluded from Git
@@ -75,7 +79,7 @@ data/VLBrandPhish/
 |-- 01_phish_12K/                  # Phishing screenshots organized by brand
 |-- 02_bengin_12K/                 # Benign screenshots
 |-- 03_logo_reference_library/     # Reference logo images per brand
-|-- 04_prompt_libraries_152/       # DBI-5 text prompt libraries
+|-- 04_prompt_libraries_152/       # Earlier prompt collection
 |-- 05_logo_crops/crops/           # Cropped-logo evaluation set
 |-- 06_prompt_library_277/         # 277-brand prompt library
 |-- 07_normal_urls_testb.csv       # Brand-to-official-domain mapping
@@ -88,7 +92,7 @@ data/VLBrandPhish/
 ```
 data/PhishIntention/
 ├── 277_brand_pages/                   # Brand reference library
-├── Logo_train/                        # Logo-detection train/test annotations
+├── logo_train/                        # Logo-detection train/test annotations (some releases use Logo_train)
 ├── benign_25k/                        # Benign webpage screenshots + URLs
 ├── phish_sample_30k/                  # Phishing webpage screenshots + URLs
 ├── normal_urls.csv                    # Brand → official domain map
@@ -125,20 +129,19 @@ Model weights are **not included** in this repository. Place them under `models/
 | File | Purpose | Expected path |
 |---|---|---|
 | `detector.pth` | DINO logo detector (MMDetection) | `models/vlbrandphish/detector.pth` |
-| `brand_identify.pt` | SigLIP brand recognizer | `models/vlbrandphish/brand_identify.pt` |
+| `brand_recognition_siglip_text4_vision2_full277.pt` | Current SigLIP brand recognizer | `models/vlbrandphish/brand_recognition_siglip_text4_vision2_full277.pt` |
 | `patched_config.py` | DINO detector configuration | `models/vlbrandphish/patched_config.py` |
 | SigLIP base model | Hugging Face SigLIP files (config.json, etc.) | `models/vlbrandphish/siglip-base-patch16-224/` |
 
-Download the VLBrandPhish detector, brand recognizer, and detector configuration from the [VLBrandPhish Hugging Face repository](https://huggingface.co/VLBrandPhish/vlbrandphish). Save them under `models/vlbrandphish/` with their original filenames:
+Model weights are not stored in Git. The current brand-recognition checkpoint named above must be supplied from the current training run; the older `brand_identify.pt` release does not represent the current text4/vision2 training configuration. The detector and its config can be placed under `models/vlbrandphish/`:
 
 ```bash
 mkdir -p models/vlbrandphish
 curl -L https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/detector.pth?download=true -o models/vlbrandphish/detector.pth
-curl -L https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/brand_identify.pt?download=true -o models/vlbrandphish/brand_identify.pt
 curl -L https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/patched_config.py?download=true -o models/vlbrandphish/patched_config.py
 ```
 
-Direct downloads: [`detector.pth`](https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/detector.pth?download=true), [`brand_identify.pt`](https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/brand_identify.pt?download=true), and [`patched_config.py`](https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/patched_config.py?download=true).
+Direct downloads: [`detector.pth`](https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/detector.pth?download=true) and [`patched_config.py`](https://huggingface.co/VLBrandPhish/vlbrandphish/resolve/main/patched_config.py?download=true). The local SigLIP base model is required for feature encoding.
 ### PhishIntention (baseline)
 
 Official release at https://github.com/lindsey98/PhishIntention. Expected under `models/phishintention/`:
@@ -193,14 +196,14 @@ Consumes the detection CSV, identifies brands using the SigLIP encoder, and make
 ```bash
 python inference/run.py \
   --det-csv outputs/detection/logo_detection_top3.csv \
-  --brand-ckpt models/vlbrandphish/brand_identify.pt \
+  --brand-ckpt models/vlbrandphish/brand_recognition_siglip_text4_vision2_full277.pt \
   --model-dir models/vlbrandphish/siglip-base-patch16-224 \
   --logo-library-dir data/VLBrandPhish/03_logo_reference_library/logo_reference_library \
-  --dbi5-dir data/VLBrandPhish/04_prompt_libraries_152/visual_all \
+  --dbi5-dir data/VLBrandPhish/06_prompt_library_277 \
   --normal-urls-csv data/VLBrandPhish/07_normal_urls_testb.csv \
   --benign-root data/VLBrandPhish/02_bengin_12K \
   --phish-root data/VLBrandPhish/01_phish_12K \
-  --brand-text-mode dbi5 \
+  --brand-text-mode ckpt_text_proto_mean \
   --device cuda:0 \
   --out-dir outputs/inference_run
 ```
@@ -213,11 +216,12 @@ The fusion and decision are **fixed** (no parameter search):
 
 | Parameter | Value |
 |---|---|
-| Image weight | 0.8 |
-| Text weight | 0.2 |
-| Decision threshold | 0.62 |
+| Image weight | 0.4 |
+| Text weight | 0.6 |
+| Decision threshold | 0.4 |
+| Detector candidates | Top-1 (highest-confidence box) |
 
-A sample is predicted as phishing only when: a logo is detected, the fused score ≥ 0.62, and the page domain does not match the predicted brand's official domain.
+A sample is predicted as phishing only when a logo is detected, the fused score is at least 0.4, and the page domain does not match the predicted brand's official domain.
 
 ### Data flow
 
@@ -241,7 +245,7 @@ predictions.csv + metrics.json + summary.json
 
 ## Reproducing experiments
 
-All experiments are manifest-driven two-stage runners. They share a common execution engine in `experiments/_shared/e2e.py` and differ only in sample selection. Every run fixes image weight to 0.8, text weight to 0.2, and threshold to 0.62.
+The overall and robustness experiments are manifest-driven and use the current fixed image/text weights (0.4/0.6) and threshold (0.4). Baseline-specific thresholds are documented in their experiment READMEs.
 
 ### RQ1 — Overall phishing detection
 
@@ -300,8 +304,9 @@ python experiments/ablations/branch_ablation/run.py
 # Prompt configuration ablation (6 prompt modes)
 python experiments/ablations/prompt_ablation/run.py
 
-# Reference-library size (not yet ported)
-# see experiments/ablations/ref_library_size/
+# Reference-library size: 4x4 VLBrandPhish training/inference caps + PDOS
+python experiments/ablations/ref_library_size/train_variants.py --run-id refcap_text4_vision2_run01
+python experiments/ablations/ref_library_size/run.py --run-id refcap_eval_run01 --train-run-id refcap_text4_vision2_run01
 ```
 
 ### Common options
@@ -316,7 +321,7 @@ All experiment runners accept:
 | `--prepare-only` | Write & validate manifest without running inference |
 | `--resume` | Resume from a completed run directory |
 | `--device` | GPU device (default: `cuda:0`) |
-| `--brand-text-mode` | `dbi5` (default), `ckpt_text_proto_mean`, etc. |
+| `--brand-text-mode` | Set by each experiment protocol: PhishIntention uses checkpoint-saved prototypes; unseen-brand runs use their external descriptions |
 
 Results are saved under `experiments/<name>/results/<run_name>/` and include the frozen input manifest, detection CSV, predictions, metrics, and logs.
 

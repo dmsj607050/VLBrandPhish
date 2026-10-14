@@ -21,10 +21,10 @@ Identical to cross-time, fixed:
 | Parameter | Value |
 |---|---|
 | brand_text_mode | dbi5 |
-| image_weight (alpha) | 0.8 |
-| text_weight | 0.2 |
-| threshold | 0.62 |
-| topk | 3 (experiment framework default) |
+| image_weight (alpha) | 0.4 |
+| text_weight | 0.6 |
+| threshold | 0.4 |
+| topk | 1 (highest-confidence detector box) |
 | device | cuda:0 |
 
 ## Run

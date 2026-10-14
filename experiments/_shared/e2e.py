@@ -27,6 +27,7 @@ from inference.data.detection_csv import (
     detection_to_csv_row,
     read_detection_top3_csv,
 )
+from inference.runtime.protocol import DEFAULT_TOPK, FIXED_DECISION_THRESHOLD, fixed_decision
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -58,7 +59,7 @@ DEFAULT_INFERENCE_PYTHON = _first_existing(
 )
 DEFAULT_SIGLIP_DIR = _first_existing(
     os.environ.get("VLBRANDPHISH_SIGLIP_MODEL_DIR", ""),
-    REPO_ROOT / "models" / "siglip-base-patch16-224",
+    REPO_ROOT / "models" / "vlbrandphish" / "siglip-base-patch16-224",
 )
 DEFAULT_DBI5_DIR = _first_existing(
     os.environ.get("VLBRANDPHISH_DBI5_DIR", ""),
@@ -113,7 +114,11 @@ def add_e2e_arguments(parser, *, default_dataset_root: str = DEFAULT_DATASET_ROO
     parser.add_argument("--det-checkpoint", default=_first_existing(models_dir / "detect_6250.pth", models_dir / "detector.pth"), help="DINO detector checkpoint.")
     parser.add_argument(
         "--brand-checkpoint",
-        default=_first_existing(models_dir / "brand_encoder_inference.pt", models_dir / "brand_identify.pt"),
+        default=_first_existing(
+            models_dir / "brand_recognition_siglip_text4_vision2_full277.pt",
+            models_dir / "brand_encoder_inference.pt",
+            models_dir / "brand_identify.pt",
+        ),
         help="Inference-only SigLIP checkpoint.",
     )
     parser.add_argument("--model-dir", default=DEFAULT_SIGLIP_DIR, help="Local Hugging Face SigLIP directory.")
@@ -148,7 +153,10 @@ def add_e2e_arguments(parser, *, default_dataset_root: str = DEFAULT_DATASET_ROO
         "prototypes and avoid the Windows sentencepiece tokenizer crash.",
     )
     parser.add_argument("--det-score-thr", type=float, default=0.05, help="Logo detector score floor.")
-    parser.add_argument("--topk", type=int, default=3, help="Retain this many logo detections per screenshot.")
+    parser.add_argument("--topk", type=int, default=DEFAULT_TOPK, help="Retain this many logo detections per screenshot (paper: 1).")
+    parser.add_argument("--url-policy-mode", default="official_plus_overrides_no_whitelist",
+                        choices=["phishintention", "official_plus_overrides_no_whitelist"],
+                        help="Use the base policy for PhishIntention and the extended policy for VLBP.")
     parser.add_argument("--max-logo-per-brand", type=int, default=-1, help="Optional deterministic reference-logo cap.")
     parser.add_argument("--image-batch-size", type=int, default=64)
     parser.add_argument("--text-batch-size", type=int, default=256)
@@ -591,6 +599,22 @@ def _write_aggregates(
     return {"predictions_with_manifest": str(merged_path), "metrics_by_group": str(metrics_path), "overall": _evaluate_rows(joined)}
 
 
+def inference_protocol(args):
+    return {"topk": int(args.topk), "det_score_thr": float(args.det_score_thr),
+            "brand_text_mode": args.brand_text_mode, "url_policy_mode": args.url_policy_mode,
+            "max_logo_per_brand": int(args.max_logo_per_brand),
+            "restrict_brands_csv": str(Path(args.restrict_brands_csv).resolve())
+                if args.restrict_brands_csv else ""}
+
+
+def validate_saved_protocol(summary, args):
+    """Never relabel predictions from an older operating point as a new run."""
+    if summary.get("fixed_decision") != fixed_decision() or \
+            summary.get("inference_protocol") != inference_protocol(args):
+        raise ValueError("Saved predictions use a different or unrecorded inference protocol; "
+                         "select a new output directory and rerun.")
+
+
 def execute_experiment(
     *,
     experiment_name: str,
@@ -617,6 +641,7 @@ def execute_experiment(
 
     manifest_path = run_dir / "input_manifest.csv"
     if run_preexisted:
+        validate_saved_protocol(_read_json(run_dir / "experiment_summary.json"), args)
         if not manifest_path.is_file():
             raise FileNotFoundError(f"Cannot resume without input_manifest.csv: {run_dir}")
         manifest_rows = read_manifest(manifest_path)
@@ -637,7 +662,8 @@ def execute_experiment(
         "input_manifest": str(manifest_path),
         "counts": selected_counts,
         "protocol": dict(protocol or {}),
-        "fixed_decision": {"image_weight": 0.8, "text_weight": 0.2, "threshold": 0.62},
+        "fixed_decision": fixed_decision(),
+        "inference_protocol": inference_protocol(args),
     }
     if args.prepare_only:
         with (run_dir / "experiment_summary.json").open("w", encoding="utf-8") as handle:
@@ -733,9 +759,9 @@ def execute_experiment(
         "--device",
         assets.device,
         "--url-policy-mode",
-        "official_plus_overrides_no_whitelist",
+        args.url_policy_mode,
         "--threshold",
-        "0.62",
+        str(FIXED_DECISION_THRESHOLD),
         "--out-dir",
         str(stage2_dir),
         "--cache-dir",
@@ -794,12 +820,13 @@ def execute_from_existing_predictions(
         )
     source_summary = _read_json(source_summary_path)
     source_decision = dict(source_summary.get("fixed_decision") or {})
-    expected_decision = {"image_weight": 0.8, "text_weight": 0.2, "threshold": 0.62}
+    expected_decision = fixed_decision()
     if source_decision != expected_decision:
         raise ValueError(
             "The supplied full run does not use the frozen VLBrandPhish decision rule: "
             f"{source_decision}"
         )
+    validate_saved_protocol(source_summary, args)
 
     experiment_dir = Path(experiment_dir).resolve()
     if args.out_dir:
@@ -817,6 +844,7 @@ def execute_from_existing_predictions(
 
     manifest_path = run_dir / "input_manifest.csv"
     if run_preexisted:
+        validate_saved_protocol(_read_json(run_dir / "experiment_summary.json"), args)
         if not manifest_path.is_file():
             raise FileNotFoundError(f"Cannot resume without input_manifest.csv: {run_dir}")
         manifest_rows = read_manifest(manifest_path)
@@ -869,6 +897,7 @@ def execute_from_existing_predictions(
         },
         "protocol": dict(protocol or {}),
         "fixed_decision": expected_decision,
+        "inference_protocol": inference_protocol(args),
         "reused_from": {
             "overall_run": str(source_dir),
             "stage1_detection_csv": str(source_dir / "stage1" / "logo_detection_top3.csv"),

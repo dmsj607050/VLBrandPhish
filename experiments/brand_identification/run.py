@@ -5,7 +5,7 @@ Dataset: Cropped-logo eval set (~2,700 crops: phish + benign, ~100 brands)
 Metric: Match Acc (benign → benign, phish → correct target brand)
 
 Methods:
-  - VLBrandPhish:    SigLIP encoder, 0.8*img + 0.2*txt fusion, threshold 0.62
+  - VLBrandPhish:    SigLIP encoder, 0.4*img + 0.6*txt fusion, threshold 0.4
   - PhishIntention:  BiT-M-R50x1 + OCR(ASTER) siamese, threshold 0.87
   - PhishPedia:      BiT-M-R50x1 siamese (image-only), threshold 0.87
 """
@@ -18,6 +18,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import sys
 import time
 from collections import OrderedDict
@@ -46,6 +47,14 @@ from inference.components.brand.repository import (
     build_brand_repository,
     score_query_features,
 )
+
+
+def _link_or_copy_directory(source: str, destination: str) -> None:
+    """Create a portable directory link, falling back to a copy on Windows."""
+    try:
+        os.symlink(source, destination, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        shutil.copytree(source, destination)
 
 # ── Method source paths ──────────────────────────────────────────────
 PPD_WEIGHTS = _first_existing(
@@ -176,7 +185,7 @@ def compute_match_accuracy_generic(
 
 
 # ═══════════════════════════════════════════════════════════════════════
-#  VLBrandPhish evaluator (SigLIP, 0.8*img + 0.2*txt, threshold 0.62)
+#  VLBrandPhish evaluator (SigLIP, 0.4*img + 0.6*txt, threshold 0.4)
 # ═══════════════════════════════════════════════════════════════════════
 
 def evaluate_vlbrandphish(
@@ -191,11 +200,11 @@ def evaluate_vlbrandphish(
     image_batch_size: int = 64,
     text_batch_size: int = 256,
     max_logo_per_brand: int = -1,
-    brand_text_mode: str = "dbi5",
-    threshold: float = 0.62,
+    brand_text_mode: str = "ckpt_text_proto_mean",
+    threshold: float = 0.4,
 ) -> dict:
     print("\n" + "=" * 60)
-    print("VLBrandPhish (SigLIP, 0.8*img+0.2*txt, threshold=0.62)")
+    print("VLBrandPhish (SigLIP, 0.4*img+0.6*txt, threshold=0.4)")
     print("=" * 60)
 
     t0 = time.perf_counter()
@@ -205,22 +214,20 @@ def evaluate_vlbrandphish(
     prompt_brands = set()
     for d in os.listdir(prompt_dir):
         dpath = os.path.join(prompt_dir, d)
-        if os.path.isdir(dpath) and any(fn.lower().endswith("_logo_description.txt") for fn in os.listdir(dpath)):
+        if os.path.isdir(dpath) and any(fn.lower().endswith(".txt") for fn in os.listdir(dpath)):
             prompt_brands.add(d)
     common_brands = ref_brands & prompt_brands
     print(f"[VLP] Reference={len(ref_brands)}, Prompt={len(prompt_brands)}, Common={len(common_brands)}")
 
     # Create junction-linked filtered dirs
     import tempfile
-    import subprocess as sp
     temp_ref = tempfile.mkdtemp(prefix="vlp_ref_")
     temp_prompt = tempfile.mkdtemp(prefix="vlp_prompt_")
     for brand in sorted(common_brands):
         for src_root, dst_root in [(reference_dir, temp_ref), (prompt_dir, temp_prompt)]:
             src = os.path.join(src_root, brand)
             dst = os.path.join(dst_root, brand)
-            sp.call(["cmd", "/c", "mklink", "/J", dst, src],
-                    stdout=sp.DEVNULL, stderr=sp.DEVNULL, shell=True)
+            _link_or_copy_directory(src, dst)
 
     # Load encoder
     encoder = CLIPEncoder(checkpoint, device=device, model_dir=model_dir)
@@ -278,7 +285,7 @@ def evaluate_vlbrandphish(
 
     # Compute similarities
     sim_img, sim_txt = score_query_features(crop_features, repo)
-    scores = 0.8 * sim_img + 0.2 * sim_txt
+    scores = 0.4 * sim_img + 0.6 * sim_txt
 
     # Evaluate
     best_scores, best_indices = scores.max(dim=1)
@@ -510,14 +517,14 @@ def main(argv: list[str] | None = None) -> None:
     )
     default_ckpt = _first_existing(
         os.environ.get("VLBRANDPHISH_BRAND_CKPT", ""),
+        REPO_ROOT / "models" / "vlbrandphish" / "brand_recognition_siglip_text4_vision2_full277.pt",
         REPO_ROOT / "models" / "vlbrandphish" / "brand_encoder_inference.pt",
-        REPO_ROOT / "models" / "vlbrandphish" / "brand_identify.pt",
     )
 
     parser = argparse.ArgumentParser(description="Brand identification: 3-method comparison")
     parser.add_argument("--crop-dir", default=os.path.join(default_dataset, "05_logo_crops", "crops"))
     parser.add_argument("--reference-dir", default=os.path.join(default_dataset, "03_logo_reference_library", "logo_reference_library"))
-    parser.add_argument("--prompt-dir", default=os.path.join(default_dataset, "04_prompt_libraries_152", "visual_all"))
+    parser.add_argument("--prompt-dir", default=os.path.join(default_dataset, "06_prompt_library_277"))
     parser.add_argument("--normal-urls-csv", default=os.path.join(default_dataset, "07_normal_urls_testb.csv"))
     parser.add_argument("--checkpoint", default=default_ckpt)
     parser.add_argument("--model-dir", default=default_siglip)
@@ -530,8 +537,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--pi-batch-size", type=int, default=32, help="Batch size for PhishIntention (smaller due to OCR)")
     parser.add_argument("--max-logo-per-brand", type=int, default=-1)
     parser.add_argument("--cache-dir", default="")
-    parser.add_argument("--brand-text-mode", default="dbi5")
-    parser.add_argument("--vlp-threshold", type=float, default=0.62)
+    parser.add_argument("--brand-text-mode", default="ckpt_text_proto_mean")
+    parser.add_argument("--vlp-threshold", type=float, default=0.4)
     parser.add_argument("--ppd-threshold", type=float, default=0.87)
     parser.add_argument("--pi-threshold", type=float, default=0.87)
     args = parser.parse_args(argv)

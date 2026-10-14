@@ -53,8 +53,7 @@ DEFAULT_DATASET_ROOT = _first_existing(
 
 DEFAULT_BRAND_CKPT = _first_existing(
     os.environ.get("VLBRANDPHISH_BRAND_CKPT", ""),
-    REPO_ROOT / "models" / "vlbrandphish" / "brand_encoder_inference.pt",
-    REPO_ROOT / "models" / "vlbrandphish" / "brand_identify.pt",
+    REPO_ROOT / "models" / "vlbrandphish" / "brand_recognition_siglip_text4_vision2_full277.pt",
 )
 
 DEFAULT_SIGLIP_DIR = _first_existing(
@@ -83,7 +82,7 @@ DATASET_CHECKS = {
     "benign":           "02_bengin_12K",
     "phish":            "01_phish_12K",
     "logo_library":     "03_logo_reference_library/logo_reference_library",
-    "prompt_library":   "04_prompt_libraries_152/visual_all",
+    "prompt_library":   "06_prompt_library_277",
     "normal_urls":      "07_normal_urls_testb.csv",
 }
 
@@ -272,7 +271,7 @@ def _pick_sample_phish(phish_root: Path) -> Optional[Tuple[Path, str, str]]:
 def _resolve_prompt_dir(dataset_root: Path) -> Optional[Path]:
     """Find the prompt-library directory by priority."""
     candidates = [
-        dataset_root / "04_prompt_libraries_152" / "visual_all",
+        dataset_root / "06_prompt_library_277",
     ]
     for c in candidates:
         if c.is_dir():
@@ -388,11 +387,11 @@ def run_minimal_inference(
         "--normal-urls-csv",    str(normal_urls),
         "--benign-root",        str(benign_root),
         "--phish-root",         str(phish_root),
-        "--brand-text-mode",    "dbi5",
+        "--brand-text-mode",    "ckpt_text_proto_mean",
         "--device",             device,
         "--topk",               "1",
         "--url-policy-mode",    "official_plus_overrides_no_whitelist",
-        "--threshold",          "0.62",
+        "--threshold",          "0.4",
         "--out-dir",            str(out_dir),
         "--no-progress",
     ]

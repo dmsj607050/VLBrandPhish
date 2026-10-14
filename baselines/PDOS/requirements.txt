@@ -1,0 +1,14 @@
+torch==2.5.1
+torchvision==0.20.1
+opencv-python
+numpy
+pandas
+scipy
+scikit-learn
+statsmodels
+Pillow
+tqdm
+matplotlib
+tldextract
+idna
+PyYAML

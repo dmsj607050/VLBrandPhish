@@ -1,0 +1,6 @@
+Logo-localization training package manifest
+===========================================
+
+Included: train.py, config.py, config_builder.py, dataset.py, model.py, loss.py, infer_tile.py, eval_test.py, evaluation tools, and DINO config snapshots.
+External assets excluded from Git: PhishIntention logo-detection images and COCO annotations, Swin initialization weights, trained detector checkpoints, and run outputs.
+The deployed detector checkpoint and MMDetection config used for evaluation must be provided under models/vlbrandphish/.
