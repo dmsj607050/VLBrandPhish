@@ -1,0 +1,6 @@
+path: ./data
+train: object_train/images
+val: object_verify/images
+test: object_test/images
+nc: 16
+names: [google, search, chrome, mail, map, play, chat, picture, meeting, amazon_1, amazon_2, alibaba, twitter_1, twitter_2, facebook_1, facebook_2]

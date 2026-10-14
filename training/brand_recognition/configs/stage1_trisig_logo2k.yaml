@@ -31,7 +31,7 @@ image_proto_agg: "attention"
 image_proto_agg_tau: 0.07
 image_proto_max_images_per_class: 8
 # Fusion weights for combining image and text logits during training.
-# Default 0.8 / 0.2 matches the reported VLBrandPhish configuration.
+# Historical pre-retraining setting. Use model_train/Brand for the current model.
 image_weight: 0.8
 text_weight: 0.2
 # 0 = never rebuild image prototypes after initial build.

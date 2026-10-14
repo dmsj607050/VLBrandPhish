@@ -59,7 +59,7 @@ DEFAULT_INFERENCE_PYTHON = _first_existing(
 )
 DEFAULT_SIGLIP_DIR = _first_existing(
     os.environ.get("VLBRANDPHISH_SIGLIP_MODEL_DIR", ""),
-    REPO_ROOT / "models" / "siglip-base-patch16-224",
+    REPO_ROOT / "models" / "vlbrandphish" / "siglip-base-patch16-224",
 )
 DEFAULT_DBI5_DIR = _first_existing(
     os.environ.get("VLBRANDPHISH_DBI5_DIR", ""),
@@ -114,7 +114,11 @@ def add_e2e_arguments(parser, *, default_dataset_root: str = DEFAULT_DATASET_ROO
     parser.add_argument("--det-checkpoint", default=_first_existing(models_dir / "detect_6250.pth", models_dir / "detector.pth"), help="DINO detector checkpoint.")
     parser.add_argument(
         "--brand-checkpoint",
-        default=_first_existing(models_dir / "brand_encoder_inference.pt", models_dir / "brand_identify.pt"),
+        default=_first_existing(
+            models_dir / "brand_recognition_siglip_text4_vision2_full277.pt",
+            models_dir / "brand_encoder_inference.pt",
+            models_dir / "brand_identify.pt",
+        ),
         help="Inference-only SigLIP checkpoint.",
     )
     parser.add_argument("--model-dir", default=DEFAULT_SIGLIP_DIR, help="Local Hugging Face SigLIP directory.")

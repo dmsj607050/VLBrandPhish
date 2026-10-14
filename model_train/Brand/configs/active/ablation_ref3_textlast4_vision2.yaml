@@ -1,0 +1,64 @@
+stage: stage1
+seed: 42
+model_name: ../../models/vlbrandphish/siglip-base-patch16-224
+prompt_ensemble: mean
+amp: false
+workers: 4
+log_interval: 50
+grad_clip_norm: 1.0
+objective: pairwise
+dataset_type: flat
+data_root: ../../data/PhishIntention/277_brand_pages
+val_ratio: 0.1
+output_dir: ./outputs/ablation_ref3_text4_vision2
+plot_loss_curves: true
+save_each_epoch: false
+batch_size: 32
+epochs: 20
+grad_accum_steps: 1
+lr: 2.0e-05
+weight_decay: 0.05
+warmup_ratio: 0.1
+min_lr_ratio: 0.05
+layer_decay: 0.9
+lr_scale_vision: 1.0
+lr_scale_text: 0.1
+lr_scale_gate: 1.0
+lr_scale_adapter: 1.0
+lr_scale_logit: 0.1
+freeze_vision: except_last_n
+unfreeze_vision_last_n: 2
+freeze_text: except_last_n
+train_logit: true
+class_aware_sampler: true
+classes_per_batch: 16
+samples_per_class: 2
+full_eval_interval: 1
+proto_refresh_interval: 1
+early_stop_patience: 5
+early_stop_min_delta: 0.001
+ref_images_per_brand_max: 3
+ref_exclusion_filenames:
+- homepage.png
+- loginpage.png
+prompts:
+  mode: brand_txt_dir
+  brand_prompt_txt_dir: ../../data/VLBrandPhish/06_prompt_library_277
+  brand_prompt_txt_glob: '*.txt'
+  brand_prompt_txt_expected_lines: 3
+  brand_prompt_txt_strict_count: true
+  brand_prompt_txt_top_k: 3
+  force_include_brand_name: true
+  fallback_to_simple13: false
+  max_prompts_per_brand: 3
+  dedupe_prompts: true
+unfreeze_text_last_n: 4
+init_from: ../../models/vlbrandphish/stage1_logo2k_pretrained.pt
+resume: null
+flat_numeric_suffix_only: false
+flat_excluded_filenames:
+- homepage_html.txt
+- homepage.png
+- login_html.txt
+- loginpage.png
+- tfidf.csv

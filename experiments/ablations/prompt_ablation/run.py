@@ -11,7 +11,7 @@ Evaluates 6 prompt configurations (Table 13 in the paper):
     brand_plus_industry     — Brand name + industry
     visual_all              — Brand name + color + content composition + style
 
-All runs use fixed fusion: 0.4 * image + 0.6 * text, threshold 0.4.
+All runs use the current fixed fusion: 0.4 * image + 0.6 * text, threshold 0.4.
 
 Metrics: AUROC↑, Brand Top-1↑, F1↑ (plus Match Acc, Precision, Recall for completeness)
 """
@@ -400,12 +400,12 @@ def main(argv: list[str] | None = None) -> None:
     default_data_root = str(REPO_ROOT / "data" / "VLBrandPhish")
     default_ckpt = _first_existing(
         os.environ.get("VLBRANDPHISH_BRAND_CKPT", ""),
+        REPO_ROOT / "models" / "vlbrandphish" / "brand_recognition_siglip_text4_vision2_full277.pt",
         REPO_ROOT / "models" / "vlbrandphish" / "brand_encoder_inference.pt",
-        REPO_ROOT / "models" / "vlbrandphish" / "brand_identify.pt",
     )
     default_siglip = _first_existing(
         os.environ.get("VLBRANDPHISH_SIGLIP_MODEL_DIR", ""),
-        REPO_ROOT / "models" / "siglip-base-patch16-224",
+        REPO_ROOT / "models" / "vlbrandphish" / "siglip-base-patch16-224",
     )
     default_prompt_root = str(REPO_ROOT / "data" / "VLBrandPhish" / "04_prompt_libraries_152")
 

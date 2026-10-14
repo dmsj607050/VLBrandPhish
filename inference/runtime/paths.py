@@ -32,10 +32,10 @@ REL_PATHS = {
     "benign_root": "data/inputs/benign",
     "phish_root": "data/inputs/phish",
     "logo_library_dir": "data/brand_library/images",
-    "dbi5_dir": "data/brand_library/DBI-5",
+    "dbi5_dir": "data/VLBrandPhish/06_prompt_library_277",
     "det_csv": "outputs/detection/logo_detection_top3.csv",
     "normal_urls_csv": "data/brand_library/normal_urls.csv",
-    "brand_ckpt": "models/vlbrandphish/brand_identify.pt",
+    "brand_ckpt": "models/vlbrandphish/brand_recognition_siglip_text4_vision2_full277.pt",
     "detector_ckpt": "models/vlbrandphish/detector.pth",
 }
 

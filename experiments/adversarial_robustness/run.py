@@ -367,6 +367,7 @@ def main(argv: list[str] | None = None) -> None:
         brand_text_mode="ckpt_text_proto_mean",
         brand_checkpoint=_first_existing(
             os.environ.get("VLBRANDPHISH_BRAND_CKPT", ""),
+            REPO_ROOT / "models" / "vlbrandphish" / "brand_recognition_siglip_text4_vision2_full277.pt",
             REPO_ROOT / "models" / "vlbrandphish" / "brand_encoder_inference.pt",
             REPO_ROOT / "models" / "vlbrandphish" / "brand_identify.pt",
         ),

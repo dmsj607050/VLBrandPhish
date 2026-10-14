@@ -83,7 +83,7 @@ def main() -> None:
     parser.add_argument(
         "--brand-text-mode",
         type=str,
-        default="dbi5",
+        default="ckpt_text_proto_mean",
         choices=[
             "dbi5",
             "train_templates_mean",

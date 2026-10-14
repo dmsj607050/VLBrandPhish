@@ -1,0 +1,5 @@
+similarity_threshold: 0.60
+detector_confidence: 0.25
+nms_iou: 0.45
+feature_extractor: resnet101
+reference_aggregation: max

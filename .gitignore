@@ -27,6 +27,14 @@ secrets*.json
 !/data/.gitkeep
 /models/*
 !/models/.gitkeep
+baselines/PDOS/logs/
+baselines/PDOS/data/
+baselines/PDOS/results/
+baselines/PDOS/weights_bundle_*/
+baselines/PDOS/checksums.sha256
+baselines/PDOS/Alibaba_test.png
+baselines/PDOS/scripts/run_cross_splits_1010.sh
+baselines/PDOS/scripts/rerun_cross_brand_shared_gallery_1010.sh
 outputs/
 *.pt
 *.pth

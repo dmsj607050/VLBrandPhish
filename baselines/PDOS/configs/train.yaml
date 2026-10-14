@@ -1,0 +1,12 @@
+model: yolov5s_se
+input_size: 640
+epochs: 200
+batch_size: 32
+optimizer: SGD
+learning_rate: 0.01
+momentum: 0.937
+weight_decay: 0.0005
+se_reduction_ratio: 16
+freeze_first_convolutional_layers: 10
+small_object_loss_weight: 1.5
+seed: 42

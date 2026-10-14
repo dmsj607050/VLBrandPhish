@@ -554,7 +554,7 @@ def build_brand_repository(
     max_logo_per_brand: int = -1,
     image_batch_size: int = 64,
     text_batch_size: int = 256,
-    brand_text_mode: str = "dbi5",
+    brand_text_mode: str = "ckpt_text_proto_mean",
     custom_prompt_file: str = "",
     brands_overlap_csv: str = "",
     *,
@@ -587,7 +587,7 @@ def build_brand_repository(
         brand_names = [b for b in all_brand_names if b in keep_set]
     else:
         brand_names = all_brand_names
-    text_mode = str(brand_text_mode or "dbi5").strip().lower()
+    text_mode = str(brand_text_mode or "ckpt_text_proto_mean").strip().lower()
     dbi_brand_names = list_brand_dirs(dbi5_dir) if text_mode == "dbi5" else []
     custom_prompt_templates = (
         _read_custom_prompt_templates(custom_prompt_file)

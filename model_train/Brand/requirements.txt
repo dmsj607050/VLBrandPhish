@@ -1,0 +1,10 @@
+pyyaml>=6.0
+transformers>=4.57.1
+sentencepiece>=0.2.0
+safetensors>=0.7.0
+torch>=2.6.0
+torchvision>=0.21.0
+tqdm>=4.66
+numpy>=1.26
+Pillow>=10.0
+paddleocr>=2.8.1
